@@ -1,11 +1,35 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import type { League } from '@fantasy-football/shared';
 import Link from 'next/link';
+import { apiClient } from '../lib/api';
 
 interface LeagueCardProps {
   league: League;
 }
 
 export default function LeagueCard({ league }: LeagueCardProps) {
+  const [unacknowledgedCount, setUnacknowledgedCount] = useState<number>(0);
+
+  useEffect(() => {
+    const fetchUnacknowledgedAlerts = async () => {
+      try {
+        const response = await apiClient.injuries.getAlerts(league.id, {
+          unacknowledged: true,
+        });
+        setUnacknowledgedCount(response.unacknowledgedCount || 0);
+      } catch (error) {
+        console.error('Failed to fetch unacknowledged alerts:', error);
+      }
+    };
+
+    fetchUnacknowledgedAlerts();
+    // Poll every 30 seconds for updates during game windows
+    const interval = setInterval(fetchUnacknowledgedAlerts, 30000);
+    return () => clearInterval(interval);
+  }, [league.id]);
+
   const formatDate = (date: Date | undefined) => {
     if (!date) return 'Never';
     return new Date(date).toLocaleDateString();
@@ -51,7 +75,7 @@ export default function LeagueCard({ league }: LeagueCardProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 mb-3">
+      <div className="grid grid-cols-3 gap-2 mb-3">
         <Link
           href={`/dashboard/trades?leagueId=${league.id}`}
           className="block text-center px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition text-sm font-medium"
@@ -63,6 +87,17 @@ export default function LeagueCard({ league }: LeagueCardProps) {
           className="block text-center px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition text-sm font-medium"
         >
           Waiver Wire
+        </Link>
+        <Link
+          href={`/dashboard/injuries?leagueId=${league.id}`}
+          className="block text-center px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition text-sm font-medium relative"
+        >
+          Injury Alerts
+          {unacknowledgedCount > 0 && (
+            <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-600 rounded-full">
+              {unacknowledgedCount}
+            </span>
+          )}
         </Link>
       </div>
 

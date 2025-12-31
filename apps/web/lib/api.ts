@@ -161,6 +161,46 @@ export const apiClient = {
       return response.data;
     },
   },
+
+  // Injury endpoints
+  injuries: {
+    getAlerts: async (leagueId: string, params?: { week?: number; season?: number; unacknowledged?: boolean }) => {
+      const response = await api.get('/injuries/alerts', {
+        params: { leagueId, ...params, unacknowledged: params?.unacknowledged ? 'true' : undefined }
+      });
+      return response.data;
+    },
+
+    getAlert: async (id: string) => {
+      const response = await api.get(`/injuries/alerts/${id}`);
+      return response.data;
+    },
+
+    acknowledgeAlert: async (id: string, substituted: boolean = false) => {
+      const response = await api.post(`/injuries/alerts/${id}/acknowledge`, { alertId: id, substituted });
+      return response.data;
+    },
+
+    getMonitoringStatus: async () => {
+      const response = await api.get('/injuries/monitoring-status');
+      return response.data;
+    },
+
+    startMonitoring: async () => {
+      const response = await api.post('/injuries/start-monitoring');
+      return response.data;
+    },
+
+    stopMonitoring: async () => {
+      const response = await api.post('/injuries/stop-monitoring');
+      return response.data;
+    },
+
+    getUpcomingGames: async (params?: { week?: number; season?: number }) => {
+      const response = await api.get('/injuries/upcoming-games', { params });
+      return response.data;
+    },
+  },
 };
 
 // Error helper
