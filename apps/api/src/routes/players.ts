@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { projectionService } from '../services/projections';
+import { playerSyncService } from '../services/playerSync';
 import { db } from '@fantasy-football/database';
 
 // Validation schemas
@@ -259,6 +260,59 @@ export default async function playerRoutes(server: FastifyInstance) {
         week,
         season,
         ...result,
+      };
+    }
+  );
+
+  /**
+   * POST /players/sync
+   * Manually trigger player sync from Sleeper API
+   * (Admin/development endpoint - in production, this runs on a daily schedule)
+   */
+  server.post(
+    '/sync',
+    {
+      preHandler: [server.authenticate],
+    },
+    async () => {
+      const status = playerSyncService.getStatus();
+
+      if (status.isSyncing) {
+        return {
+          message: 'Player sync already in progress',
+          status,
+        };
+      }
+
+      // Start sync (don't await - can take several minutes)
+      playerSyncService.syncAllPlayers().then((result) => {
+        console.log('[Player Sync API] Sync completed:', result);
+      }).catch((error) => {
+        console.error('[Player Sync API] Sync failed:', error);
+      });
+
+      return {
+        message: 'Player sync started',
+        status: playerSyncService.getStatus(),
+        note: 'This may take several minutes. Check status with GET /players/sync/status',
+      };
+    }
+  );
+
+  /**
+   * GET /players/sync/status
+   * Get player sync status
+   */
+  server.get(
+    '/sync/status',
+    {
+      preHandler: [server.authenticate],
+    },
+    async () => {
+      const status = playerSyncService.getStatus();
+      return {
+        ...status,
+        message: status.isSyncing ? 'Sync in progress' : 'No sync running',
       };
     }
   );

@@ -1,5 +1,6 @@
 import cron from 'node-cron';
 import { projectionService } from './projections';
+import { playerSyncService } from './playerSync';
 
 /**
  * Get current NFL week and season
@@ -65,6 +66,21 @@ export class SchedulerService {
   start() {
     console.log('Starting scheduler service...');
 
+    // Daily player sync at 2:00 AM ET (runs before projections)
+    // This keeps player database fresh with injury statuses, team changes, etc.
+    const playerSyncJob = cron.schedule(
+      '0 7 * * *', // Every day at 7:00 AM UTC (2:00 AM ET)
+      async () => {
+        console.log('Running scheduled player sync...');
+        await this.syncPlayers();
+      },
+      {
+        timezone: 'UTC',
+      }
+    );
+
+    this.jobs.push(playerSyncJob);
+
     // Daily projection sync at 3:00 AM ET
     // Cron format: minute hour day month dayOfWeek
     // ET is UTC-5 (or UTC-4 during DST), so 3 AM ET = 8 AM UTC (standard) or 7 AM UTC (DST)
@@ -99,6 +115,7 @@ export class SchedulerService {
     this.jobs.push(transactionSyncJob);
 
     console.log('✓ Scheduler service started');
+    console.log('  - Daily player sync: 2:00 AM ET (7:00 AM UTC)');
     console.log('  - Daily projection sync: 3:00 AM ET (8:00 AM UTC)');
     console.log('  - Weekly transaction sync: Wednesdays 3:00 AM ET');
   }
@@ -141,6 +158,26 @@ export class SchedulerService {
     } catch (error) {
       console.error('Error in scheduled projection sync:', error);
     }
+  }
+
+  /**
+   * Sync players from Sleeper API
+   */
+  private async syncPlayers() {
+    try {
+      console.log('Starting player sync from Sleeper API...');
+      const result = await playerSyncService.syncAllPlayers();
+      console.log('✓ Scheduled player sync completed', result);
+    } catch (error) {
+      console.error('Error in scheduled player sync:', error);
+    }
+  }
+
+  /**
+   * Manually trigger player sync (for testing/admin)
+   */
+  async triggerPlayerSync() {
+    await this.syncPlayers();
   }
 
   /**

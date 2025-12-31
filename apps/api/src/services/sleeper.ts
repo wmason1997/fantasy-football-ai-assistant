@@ -26,11 +26,28 @@ interface SleeperRoster {
 
 interface SleeperPlayer {
   player_id: string;
+  first_name: string;
+  last_name: string;
   full_name: string;
   position: string;
-  team: string;
+  team: string | null;
   status: string;
-  injury_status: string;
+  injury_status: string | null;
+  injury_body_part: string | null;
+  injury_start_date: string | null;
+  active: boolean;
+  age: number;
+  years_exp: number;
+  number: number;
+  depth_chart_order: number | null;
+  birth_date: string | null;
+  height: string;
+  weight: string;
+  college: string;
+  // Additional metadata fields
+  fantasy_positions?: string[];
+  search_rank?: number;
+  sport?: string;
 }
 
 interface SleeperUser {
@@ -88,3 +105,6 @@ class SleeperService {
 }
 
 export const sleeperService = new SleeperService();
+
+// Export types for use in other services
+export type { SleeperPlayer, SleeperLeague, SleeperRoster, SleeperUser };
