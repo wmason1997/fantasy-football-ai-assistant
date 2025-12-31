@@ -53,6 +53,7 @@ model League {
   tradeRecommendations  TradeRecommendation[]
   opponentProfiles      OpponentProfile[]
   waiverRecommendations WaiverRecommendation[]
+  injuryAlerts          InjuryAlert[]
 
   @@unique([platform, platformLeagueId, platformTeamId])
   @@index([userId])
@@ -306,4 +307,62 @@ model WaiverRecommendation {
   @@index([leagueId, status])
   @@index([playerId])
   @@map("waiver_recommendations")
+}
+
+// Injury Alerts (real-time monitoring and notifications)
+model InjuryAlert {
+  id                String   @id @default(uuid())
+  leagueId          String
+  week              Int
+  season            Int
+
+  // Injured player details
+  injuredPlayerId   String
+  injuredPlayerName String   @db.VarChar(200)
+  position          String   @db.VarChar(10)
+  team              String?  @db.VarChar(10)
+
+  // Injury information
+  previousStatus    String   @db.VarChar(20) // Status before injury
+  newStatus         String   @db.VarChar(20) // Current status (usually 'Out')
+  injuryDesignation String?  @db.VarChar(100)
+
+  // Game information
+  gameTime          DateTime // Scheduled game kickoff time
+  gameId            String?  @db.VarChar(100)
+  opponent          String?  @db.VarChar(10)
+
+  // Timing
+  detectedAt        DateTime @default(now())
+  minutesToKickoff  Int      // Minutes remaining until kickoff when detected
+  isUrgent          Boolean  @default(false) // <10 minutes to kickoff
+
+  // Substitution recommendation
+  recommendedSubPlayerId   String?
+  recommendedSubPlayerName String?  @db.VarChar(200)
+  recommendedSubProjection Float?
+  autoSubstituted          Boolean  @default(false)
+
+  // Notification tracking
+  notificationSent     Boolean  @default(false)
+  notificationSentAt   DateTime?
+  pushToken            String?  @db.VarChar(500)
+  urgencyLevel         String   @db.VarChar(20) @default("medium") // 'low', 'medium', 'high', 'critical'
+
+  // User response
+  userAcknowledged     Boolean  @default(false)
+  acknowledgedAt       DateTime?
+  userSubstituted      Boolean  @default(false)
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relations
+  league League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  @@index([leagueId, week, season])
+  @@index([gameTime])
+  @@index([notificationSent])
+  @@index([injuredPlayerId])
+  @@map("injury_alerts")
 }

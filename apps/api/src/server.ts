@@ -9,9 +9,11 @@ import leagueRoutes from './routes/leagues';
 import playerRoutes from './routes/players';
 import tradeRoutes from './routes/trades';
 import waiverRoutes from './routes/waivers';
+import injuryRoutes from './routes/injuries';
 import { ZodError } from 'zod';
 import { connectRedis, disconnectRedis, cacheService } from './services/cache';
 import { schedulerService } from './services/scheduler';
+import { injuryMonitorService } from './services/injuryMonitor';
 import { db } from '@fantasy-football/database';
 
 const server = Fastify({
@@ -80,6 +82,7 @@ server.register(leagueRoutes, { prefix: '/leagues' });
 server.register(playerRoutes, { prefix: '/players' });
 server.register(tradeRoutes, { prefix: '/trades' });
 server.register(waiverRoutes, { prefix: '/waivers' });
+server.register(injuryRoutes, { prefix: '/injuries' });
 
 const start = async () => {
   try {
@@ -89,6 +92,11 @@ const start = async () => {
 
     // Start scheduler service
     schedulerService.start();
+
+    // Note: Injury monitor can be started via POST /injuries/start-monitoring
+    // It only runs during game windows (Thu 6-11PM, Sun 12-11PM, Mon 6-11PM ET)
+    // Uncomment to auto-start on server launch:
+    // injuryMonitorService.start();
 
     // Start server
     await server.listen({ port: config.port, host: '0.0.0.0' });
@@ -104,6 +112,7 @@ const shutdown = async () => {
   console.log('\nShutting down gracefully...');
   try {
     schedulerService.stop();
+    injuryMonitorService.stop();
     await server.close();
     await disconnectRedis();
     console.log('✓ Server closed successfully');
