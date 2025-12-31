@@ -1,0 +1,118 @@
+// Prisma schema for Fantasy Football AI Assistant
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Users & Authentication
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+  lastLogin DateTime?
+  pushToken String?  @db.VarChar(500)
+
+  // JSON field for notification preferences
+  notificationPreferences Json @default("{\"injuryAlerts\": true, \"tradeSuggestions\": true, \"waiverReminders\": true, \"autoSubstitute\": false}")
+
+  // Relations
+  leagues League[]
+
+  @@map("users")
+}
+
+// Connected Fantasy Leagues
+model League {
+  id               String   @id @default(uuid())
+  userId           String
+  platform         String   @db.VarChar(20) // 'sleeper', 'espn', 'yahoo'
+  platformLeagueId String   @db.VarChar(100)
+  leagueName       String?  @db.VarChar(200)
+  teamName         String?  @db.VarChar(200)
+  platformTeamId   String?  @db.VarChar(100)
+  scoringSettings  Json?
+  rosterSettings   Json?
+  faabBudget       Int?
+  currentFaab      Int?
+  waiverPriority   Int?
+  isActive         Boolean  @default(true)
+  lastSynced       DateTime?
+  createdAt        DateTime @default(now())
+
+  // Relations
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rosters Roster[]
+  transactions Transaction[]
+
+  @@unique([platform, platformLeagueId, platformTeamId])
+  @@index([userId])
+  @@map("leagues")
+}
+
+// Player Master Data (synced from APIs)
+model Player {
+  id               String   @id @db.VarChar(50) // platform player ID
+  fullName         String   @db.VarChar(200)
+  position         String   @db.VarChar(10)
+  team             String?  @db.VarChar(10) // NFL team abbreviation
+  status           String?  @db.VarChar(20) // 'Active', 'Out', 'Questionable', etc.
+  injuryDesignation String? @db.VarChar(100)
+  byeWeek          Int?
+  lastUpdated      DateTime @default(now())
+  metadata         Json?
+
+  // Relations
+  rosters Roster[]
+
+  @@index([status])
+  @@map("players")
+}
+
+// User's Current Roster (denormalized for performance)
+model Roster {
+  id             String   @id @default(uuid())
+  leagueId       String
+  playerId       String
+  rosterSlot     String   @db.VarChar(20) // 'QB', 'RB', 'FLEX', 'BN', etc.
+  isStarting     Boolean  @default(false)
+  acquiredDate   DateTime?
+  acquisitionCost Int?    // FAAB spent or NULL
+
+  // Relations
+  league League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id])
+
+  @@unique([leagueId, playerId])
+  @@index([leagueId])
+  @@map("rosters")
+}
+
+// League Transactions (append-only audit log)
+model Transaction {
+  id                    String   @id @default(uuid())
+  leagueId              String
+  transactionType       String   @db.VarChar(20) // 'trade', 'waiver', 'free_agent'
+  week                  Int
+  season                Int
+  involvedTeams         Json // array of team IDs
+  playersMoved          Json // [{player_id, from_team, to_team, faab_cost}]
+  proposerTeamId        String?  @db.VarChar(100)
+  status                String   @db.VarChar(20) // 'proposed', 'accepted', 'rejected', 'completed'
+  proposedAt            DateTime?
+  completedAt           DateTime?
+  platformTransactionId String?  @db.VarChar(100)
+  metadata              Json?
+
+  // Relations
+  league League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  @@index([leagueId, week, season])
+  @@map("transactions")
+}

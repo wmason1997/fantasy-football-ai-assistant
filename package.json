@@ -1,0 +1,21 @@
+{
+  "name": "fantasy-football-ai-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "build": "pnpm --filter \"./apps/*\" build",
+    "db:generate": "pnpm --filter database generate",
+    "db:migrate": "pnpm --filter database migrate",
+    "db:push": "pnpm --filter database push",
+    "db:studio": "pnpm --filter database studio",
+    "lint": "pnpm --filter \"./apps/*\" lint",
+    "test": "pnpm --filter \"./apps/*\" test"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3",
+    "prettier": "^3.2.4",
+    "eslint": "^8.56.0"
+  }
+}
