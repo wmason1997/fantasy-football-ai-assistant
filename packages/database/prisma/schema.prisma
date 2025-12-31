@@ -47,9 +47,12 @@ model League {
   createdAt        DateTime @default(now())
 
   // Relations
-  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  rosters Roster[]
-  transactions Transaction[]
+  user                  User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rosters               Roster[]
+  transactions          Transaction[]
+  tradeRecommendations  TradeRecommendation[]
+  opponentProfiles      OpponentProfile[]
+  waiverRecommendations WaiverRecommendation[]
 
   @@unique([platform, platformLeagueId, platformTeamId])
   @@index([userId])
@@ -69,7 +72,8 @@ model Player {
   metadata         Json?
 
   // Relations
-  rosters Roster[]
+  rosters     Roster[]
+  projections PlayerProjection[]
 
   @@index([status])
   @@map("players")
@@ -115,4 +119,191 @@ model Transaction {
 
   @@index([leagueId, week, season])
   @@map("transactions")
+}
+
+// Player Projections (weekly fantasy point projections)
+model PlayerProjection {
+  id          String   @id @default(uuid())
+  playerId    String
+  week        Int      // 0 for season-long, 1-18 for weekly
+  season      Int
+  projectedPoints Float
+
+  // Position-specific stats (flexible JSON structure)
+  // QB: {passingYards, passingTDs, interceptions, rushingYards, rushingTDs}
+  // RB/WR/TE: {rushingYards, rushingTDs, receptions, receivingYards, receivingTDs, targets}
+  // K: {fieldGoalsMade, fieldGoalsAttempted, extraPointsMade}
+  // DST: {sacks, interceptions, fumblesRecovered, safeties, touchdowns, pointsAllowed}
+  stats       Json?
+
+  // Confidence interval for projection accuracy
+  confidence  Float?   @default(0.5) // 0.0 to 1.0
+
+  // Source of projection (for tracking which model/API it came from)
+  source      String   @db.VarChar(50) @default("sleeper") // 'sleeper', 'espn', 'internal_ml', etc.
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, week, season, source])
+  @@index([playerId, week, season])
+  @@index([week, season])
+  @@map("player_projections")
+}
+
+// Trade Recommendations (AI-generated trade suggestions)
+model TradeRecommendation {
+  id                String   @id @default(uuid())
+  leagueId          String
+  week              Int
+  season            Int
+
+  // Trade package details
+  myPlayers         Json     // [{playerId, playerName, position, currentValue, projectedValue}]
+  targetPlayers     Json     // [{playerId, playerName, position, currentValue, projectedValue}]
+  targetTeamId      String   @db.VarChar(100)
+  targetTeamName    String?  @db.VarChar(200)
+
+  // Trade analysis scores
+  fairnessScore     Float    // 0.0 to 1.0 (>0.6 recommended)
+  acceptanceProbability Float // 0.0 to 1.0 (>0.25 recommended)
+  myValueGain       Float    // Expected value gain for my team
+  targetValueGain   Float    // Expected value gain for target team
+
+  // Trade type and reasoning
+  tradeType         String   @db.VarChar(20) // '1-for-1', '2-for-1', '2-for-2'
+  reasoning         String   @db.Text // Human-readable explanation
+  sellHighPlayers   Json?    // Players I'm selling high
+  buyLowPlayers     Json?    // Players I'm buying low
+
+  // Recommendation metadata
+  confidence        Float    @default(0.5)
+  priority          Int      @default(0) // Higher = more recommended
+  status            String   @db.VarChar(20) @default("pending") // 'pending', 'sent', 'accepted', 'rejected', 'dismissed'
+
+  // User tracking
+  viewedAt          DateTime?
+  sentAt            DateTime?
+  respondedAt       DateTime?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  league League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  @@index([leagueId, week, season])
+  @@index([leagueId, status])
+  @@index([week, season])
+  @@map("trade_recommendations")
+}
+
+// Opponent Profiles (learned opponent tendencies)
+model OpponentProfile {
+  id                  String   @id @default(uuid())
+  leagueId            String
+  opponentTeamId      String   @db.VarChar(100)
+  opponentTeamName    String?  @db.VarChar(200)
+
+  // Position preferences (learned via Bayesian updates)
+  // Higher value = stronger preference for that position
+  qbPreference        Float    @default(0.5)
+  rbPreference        Float    @default(0.5)
+  wrPreference        Float    @default(0.5)
+  tePreference        Float    @default(0.5)
+
+  // Trade behavior patterns
+  riskTolerance       Float    @default(0.5) // 0.0 = risk-averse, 1.0 = risk-seeking
+  tradingActivity     Float    @default(0.5) // 0.0 = rarely trades, 1.0 = very active
+  acceptanceRate      Float    @default(0.3) // Ratio of accepted to proposed trades
+
+  // Historical statistics
+  totalTradesProposed Int      @default(0)
+  totalTradesAccepted Int      @default(0)
+  totalTradesRejected Int      @default(0)
+  totalTradesInitiated Int     @default(0)
+
+  // Learned preferences
+  prefersStars        Boolean  @default(false) // Prefers fewer high-value players
+  prefersDepth        Boolean  @default(false) // Prefers more lower-value players
+  valuesSafety        Boolean  @default(true)  // Avoids injury-prone players
+
+  // Last analysis metadata
+  lastUpdated         DateTime @default(now())
+  lastTradeDate       DateTime?
+  dataPoints          Int      @default(0) // Number of transactions analyzed
+
+  // Relations
+  league League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  @@unique([leagueId, opponentTeamId])
+  @@index([leagueId])
+  @@map("opponent_profiles")
+}
+
+// Waiver Wire Recommendations (AI-optimized waiver claims)
+model WaiverRecommendation {
+  id                  String   @id @default(uuid())
+  leagueId            String
+  week                Int
+  season              Int
+
+  // Player details
+  playerId            String
+  playerName          String   @db.VarChar(200)
+  position            String   @db.VarChar(10)
+  team                String?  @db.VarChar(10)
+
+  // Opportunity metrics
+  opportunityScore    Float    // 0.0 to 1.0 (>0.3 recommended)
+  projectedPoints     Float    // ROS projection
+  recentPerformance   Float    // Last 3 weeks average
+  targetShare         Float?   // For WR/TE
+  snapShare           Float?   // Playing time percentage
+  injuryImpact        Boolean  @default(false) // Benefiting from teammate injury
+
+  // Roster analysis
+  positionalNeed      Float    // 0.0 to 1.0 (1.0 = critical need)
+  wouldStartImmediately Boolean @default(false)
+  benchDepthScore     Float    // How much this improves bench
+
+  // FAAB bid calculation (for FAAB leagues)
+  recommendedBid      Int?     // Recommended FAAB amount
+  minBid              Int?     // Minimum to be competitive
+  maxBid              Int?     // Maximum reasonable bid
+  medianHistoricalBid Int?     // League average for similar adds
+  addTrendPercentage  Float?   // % of leagues adding this player
+
+  // Waiver priority (for non-FAAB leagues)
+  priorityRank        Int      @default(0) // 1 = highest priority claim
+  shouldClaim         Boolean  @default(false)
+
+  // Drop candidate
+  suggestedDropPlayerId   String?
+  suggestedDropPlayerName String?  @db.VarChar(200)
+  dropPlayerValue         Float?
+
+  // Recommendation metadata
+  reasoning           String   @db.Text
+  confidence          Float    @default(0.5)
+  urgency             String   @db.VarChar(20) @default("medium") // 'low', 'medium', 'high', 'critical'
+
+  // User tracking
+  status              String   @db.VarChar(20) @default("pending") // 'pending', 'claimed', 'missed', 'dismissed'
+  viewedAt            DateTime?
+  claimedAt           DateTime?
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  league League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  @@index([leagueId, week, season])
+  @@index([leagueId, status])
+  @@index([playerId])
+  @@map("waiver_recommendations")
 }
