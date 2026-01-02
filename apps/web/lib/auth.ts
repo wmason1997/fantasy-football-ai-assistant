@@ -23,6 +23,8 @@ export const useAuth = create<AuthState>()(
       login: async (email: string, password: string) => {
         const response = await apiClient.auth.login({ email, password });
         localStorage.setItem('token', response.token);
+        // Set cookie for middleware
+        document.cookie = `token=${response.token}; path=/; max-age=${60 * 60 * 24 * 7}`; // 7 days
         set({
           user: response.user,
           token: response.token,
@@ -33,6 +35,8 @@ export const useAuth = create<AuthState>()(
       register: async (email: string, password: string, name?: string) => {
         const response = await apiClient.auth.register({ email, password, name });
         localStorage.setItem('token', response.token);
+        // Set cookie for middleware
+        document.cookie = `token=${response.token}; path=/; max-age=${60 * 60 * 24 * 7}`; // 7 days
         set({
           user: response.user,
           token: response.token,
@@ -42,6 +46,8 @@ export const useAuth = create<AuthState>()(
 
       logout: () => {
         localStorage.removeItem('token');
+        // Clear cookie
+        document.cookie = 'token=; path=/; max-age=0';
         set({
           user: null,
           token: null,

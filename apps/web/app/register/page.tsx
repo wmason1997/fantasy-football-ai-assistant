@@ -18,6 +18,19 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Client-side validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Invalid email address');
+      return;
+    }
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -51,6 +64,7 @@ export default function RegisterPage() {
             </label>
             <input
               id="name"
+              name="name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -65,7 +79,8 @@ export default function RegisterPage() {
             </label>
             <input
               id="email"
-              type="email"
+              name="email"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -80,6 +95,7 @@ export default function RegisterPage() {
             </label>
             <input
               id="password"
+              name="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

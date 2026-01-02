@@ -50,7 +50,8 @@ export default function LoginPage() {
             </label>
             <input
               id="email"
-              type="email"
+              name="email"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -65,6 +66,7 @@ export default function LoginPage() {
             </label>
             <input
               id="password"
+              name="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

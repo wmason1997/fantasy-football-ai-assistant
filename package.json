@@ -10,7 +10,12 @@
     "db:push": "pnpm --filter database push",
     "db:studio": "pnpm --filter database studio",
     "lint": "pnpm --filter \"./apps/*\" lint",
-    "test": "pnpm --filter \"./apps/*\" test"
+    "test": "pnpm --filter \"./apps/*\" test",
+    "test:unit": "pnpm --filter @fantasy-football/api test",
+    "test:integration": "pnpm --filter @fantasy-football/api test:integration",
+    "test:e2e": "pnpm --filter @fantasy-football/web test:e2e",
+    "test:all": "pnpm test:unit && pnpm test:integration && pnpm test:e2e",
+    "test:coverage": "pnpm --filter @fantasy-football/api test:coverage"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

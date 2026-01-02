@@ -6,21 +6,29 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
     "@fantasy-football/shared": "workspace:*",
+    "axios": "^1.6.5",
     "next": "14.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "zustand": "^4.4.7",
-    "axios": "^1.6.5"
+    "zustand": "^4.4.7"
   },
   "devDependencies": {
+    "@fantasy-football/database": "workspace:*",
+    "@playwright/test": "^1.57.0",
+    "@types/bcrypt": "^5.0.2",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
     "autoprefixer": "^10.4.17",
+    "bcrypt": "^5.1.1",
     "eslint": "^8.56.0",
     "eslint-config-next": "14.1.0",
     "postcss": "^8.4.33",
