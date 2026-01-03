@@ -28,19 +28,57 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
+    // Setup project - runs first to authenticate
+    { name: 'setup', testMatch: /.*\.setup\.ts/ },
+
+    // Auth tests should not use authenticated storage state
+    {
+      name: 'auth-chromium',
+      testMatch: /.*auth\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'auth-firefox',
+      testMatch: /.*auth\.spec\.ts/,
+      use: { ...devices['Desktop Firefox'] },
+    },
+    {
+      name: 'auth-webkit',
+      testMatch: /.*auth\.spec\.ts/,
+      use: { ...devices['Desktop Safari'] },
+    },
+
+    // Authenticated tests for all other specs
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      testIgnore: /.*auth\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        // Use the authenticated state for all tests
+        storageState: '.auth/user.json',
+      },
+      dependencies: ['setup'],
     },
 
     {
       name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
+      testIgnore: /.*auth\.spec\.ts/,
+      use: {
+        ...devices['Desktop Firefox'],
+        storageState: '.auth/user.json',
+      },
+      dependencies: ['setup'],
     },
 
     {
       name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      testIgnore: /.*auth\.spec\.ts/,
+      use: {
+        ...devices['Desktop Safari'],
+        // WebKit has issues with localStorage in storage state, so we skip it
+        // and rely on beforeEach authentication in tests
+      },
+      dependencies: ['setup'],
     },
 
     /* Test against mobile viewports. */

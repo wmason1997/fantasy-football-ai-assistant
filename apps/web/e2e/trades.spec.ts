@@ -1,19 +1,38 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
+import { navigateAuthenticated, authenticateUser } from './helpers/auth';
 
 /**
  * E2E tests for Trade Recommendations user journey
  *
  * Tests the complete flow from logging in to viewing trade recommendations
+ * Note: Authentication is handled via storage state from auth.setup.ts (except WebKit)
  */
 
 test.describe('Trade Recommendations', () => {
-  test.beforeEach(async ({ page }) => {
-    // Login before each test
-    await page.goto('/login');
-    await page.fill('input[name="email"]', 'test@example.com');
-    await page.fill('input[name="password"]', 'testpassword123');
-    await page.click('button[type="submit"]');
-    await expect(page).toHaveURL('/dashboard', { timeout: 10000 });
+  test.beforeEach(async ({ page, browserName }) => {
+    // WebKit has issues with localStorage in storage state
+    // So we authenticate manually for webkit
+    if (browserName === 'webkit') {
+      await authenticateUser(page, 'test@example.com', 'testpassword123');
+    } else {
+      // For chromium/firefox, storage state is already set
+      await page.goto('/dashboard');
+      await page.waitForLoadState('networkidle');
+
+      // Ensure localStorage token is available for navigateAuthenticated helper
+      // Storage state should have set both cookies and localStorage, but sometimes
+      // localStorage isn't restored properly, so we set it from cookies as fallback
+      const token = await page.evaluate(() => localStorage.getItem('token'));
+      if (!token) {
+        const cookies = await page.context().cookies();
+        const tokenCookie = cookies.find(c => c.name === 'token');
+        if (tokenCookie) {
+          await page.evaluate((cookieValue) => {
+            localStorage.setItem('token', cookieValue);
+          }, tokenCookie.value);
+        }
+      }
+    }
   });
 
   test('should display trades tab in dashboard', async ({ page }) => {
@@ -23,12 +42,15 @@ test.describe('Trade Recommendations', () => {
     // Verify URL
     await expect(page).toHaveURL('/dashboard/trades');
 
-    // Verify page heading
-    await expect(page.locator('h1:has-text("Trade Recommendations")')).toBeVisible();
+    // The page should show either the Trade Recommendations heading or the empty state
+    // We use a flexible matcher that works for both scenarios
+    await expect(
+      page.locator('h1:has-text("Trade Recommendations"), h3:has-text("No leagues connected")')
+    ).toBeVisible();
   });
 
   test('should show sell-high candidates', async ({ page }) => {
-    await page.goto('/dashboard/trades');
+    await navigateAuthenticated(page, '/dashboard/trades');
 
     // Look for sell-high section
     const sellHighSection = page.locator('text=Sell High').locator('..');
@@ -49,7 +71,7 @@ test.describe('Trade Recommendations', () => {
   });
 
   test('should show buy-low candidates', async ({ page }) => {
-    await page.goto('/dashboard/trades');
+    await navigateAuthenticated(page, '/dashboard/trades');
 
     // Look for buy-low section
     const buyLowSection = page.locator('text=Buy Low').locator('..');
@@ -61,7 +83,7 @@ test.describe('Trade Recommendations', () => {
   });
 
   test('should display trade package recommendations', async ({ page }) => {
-    await page.goto('/dashboard/trades');
+    await navigateAuthenticated(page, '/dashboard/trades');
 
     // Look for trade recommendations
     const tradeCards = page.locator('[data-testid="trade-recommendation-card"]');
@@ -74,18 +96,19 @@ test.describe('Trade Recommendations', () => {
       await firstTrade.click();
 
       // Verify modal/details view opens
-      await expect(page.locator('[data-testid="trade-details-modal"]')).toBeVisible();
+      const modal = page.locator('[data-testid="trade-details-modal"]');
+      await expect(modal).toBeVisible();
 
-      // Verify fairness score is displayed
-      await expect(page.locator('text=Fairness Score')).toBeVisible();
+      // Verify fairness score heading is displayed in modal
+      await expect(modal.locator('h3:has-text("Fairness Score")')).toBeVisible();
 
-      // Verify acceptance probability is displayed
-      await expect(page.locator('text=Acceptance Probability')).toBeVisible();
+      // Verify acceptance probability heading is displayed in modal
+      await expect(modal.locator('h3:has-text("Acceptance Probability")')).toBeVisible();
     }
   });
 
   test('should allow filtering trade recommendations', async ({ page }) => {
-    await page.goto('/dashboard/trades');
+    await navigateAuthenticated(page, '/dashboard/trades');
 
     // Look for filter controls
     const positionFilter = page.locator('select[name="position"]');
@@ -101,14 +124,20 @@ test.describe('Trade Recommendations', () => {
 
   test('should show empty state when no league connected', async ({ page }) => {
     // Assuming user has no leagues connected
-    await page.goto('/dashboard/trades');
+    await navigateAuthenticated(page, '/dashboard/trades');
 
-    // Look for connect league prompt
-    const connectPrompt = page.locator('text=/connect.*league/i');
+    // Look for the specific "No leagues connected" heading
+    const noLeaguesHeading = page.locator('h3:has-text("No leagues connected")');
 
-    // Might be visible if no leagues are connected
-    if (await connectPrompt.count() > 0) {
-      await expect(connectPrompt).toBeVisible();
+    // Check if the empty state is shown
+    const count = await noLeaguesHeading.count();
+    if (count > 0) {
+      await expect(noLeaguesHeading).toBeVisible();
+      // Verify the connect league button is present
+      await expect(page.locator('a:has-text("Connect League")')).toBeVisible();
+    } else {
+      // If leagues are connected, we should see the Trade Recommendations heading
+      await expect(page.locator('h1:has-text("Trade Recommendations")')).toBeVisible();
     }
   });
 });

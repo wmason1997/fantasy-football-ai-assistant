@@ -15,10 +15,15 @@ const loginSchema = z.object({
 });
 
 export default async function authRoutes(fastify: FastifyInstance) {
+  const isDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+
   // Register new user
   fastify.post('/register', {
     config: {
-      rateLimit: {
+      rateLimit: isDev ? {
+        max: 1000,
+        timeWindow: '1 minute',
+      } : {
         max: 5,
         timeWindow: '1 minute',
       },
@@ -76,7 +81,10 @@ export default async function authRoutes(fastify: FastifyInstance) {
   // Login
   fastify.post('/login', {
     config: {
-      rateLimit: {
+      rateLimit: isDev ? {
+        max: 1000,
+        timeWindow: '1 minute',
+      } : {
         max: 5,
         timeWindow: '1 minute',
       },

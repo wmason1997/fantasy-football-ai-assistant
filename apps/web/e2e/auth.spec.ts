@@ -18,6 +18,9 @@ test.describe('User Authentication', () => {
       // Verify we're on the registration page
       await expect(page).toHaveURL('/register');
 
+      // Wait for page to be fully hydrated
+      await page.waitForLoadState('networkidle');
+
       // Fill in registration form
       const timestamp = Date.now();
       await page.fill('input[name="email"]', `testuser${timestamp}@example.com`);
@@ -36,6 +39,7 @@ test.describe('User Authentication', () => {
 
     test('should show validation errors for invalid email', async ({ page }) => {
       await page.goto('/register');
+      await page.waitForLoadState('networkidle');
 
       await page.fill('input[name="email"]', 'invalid-email');
       await page.fill('input[name="password"]', 'ValidPassword123!');
@@ -47,6 +51,7 @@ test.describe('User Authentication', () => {
 
     test('should show validation errors for weak password', async ({ page }) => {
       await page.goto('/register');
+      await page.waitForLoadState('networkidle');
 
       await page.fill('input[name="email"]', 'test@example.com');
       await page.fill('input[name="password"]', '123'); // Too short
@@ -61,6 +66,7 @@ test.describe('User Authentication', () => {
 
       // First registration
       await page.goto('/register');
+      await page.waitForLoadState('networkidle');
       await page.fill('input[name="email"]', email);
       await page.fill('input[name="password"]', 'SecurePassword123!');
       await page.fill('input[name="name"]', 'First User');
@@ -70,11 +76,12 @@ test.describe('User Authentication', () => {
       await expect(page).toHaveURL('/dashboard', { timeout: 10000 });
 
       // Logout
-      // await page.click('button[aria-label="User menu"]');
-      // await page.click('text=Logout');
+      await page.click('button:has-text("Logout")');
+      await page.waitForURL('/login');
 
       // Try to register with same email
       await page.goto('/register');
+      await page.waitForLoadState('networkidle');
       await page.fill('input[name="email"]', email);
       await page.fill('input[name="password"]', 'DifferentPassword123!');
       await page.fill('input[name="name"]', 'Second User');
@@ -88,6 +95,7 @@ test.describe('User Authentication', () => {
   test.describe('Login Flow', () => {
     test('should allow existing user to login', async ({ page }) => {
       await page.goto('/login');
+      await page.waitForLoadState('networkidle');
 
       // Use the test user created in global setup
       await page.fill('input[name="email"]', 'test@example.com');
@@ -103,6 +111,7 @@ test.describe('User Authentication', () => {
 
     test('should reject invalid credentials', async ({ page }) => {
       await page.goto('/login');
+      await page.waitForLoadState('networkidle');
 
       await page.fill('input[name="email"]', 'test@example.com');
       await page.fill('input[name="password"]', 'wrongpassword');
