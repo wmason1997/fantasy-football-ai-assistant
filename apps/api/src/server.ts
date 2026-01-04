@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import jwt from '@fastify/jwt';
+import sensible from '@fastify/sensible';
 import { config } from './config';
 import authPlugin from './plugins/auth';
 import authRoutes from './routes/auth';
@@ -26,6 +27,8 @@ const server = Fastify({
 server.decorate('prisma', db);
 
 // Register plugins
+server.register(sensible);
+
 server.register(cors, {
   origin: config.frontendUrl,
   credentials: true,

@@ -53,6 +53,10 @@ interface SleeperPlayer {
 interface SleeperUser {
   user_id: string;
   display_name: string;
+  metadata?: {
+    team_name?: string;
+    [key: string]: any;
+  };
 }
 
 class SleeperService {

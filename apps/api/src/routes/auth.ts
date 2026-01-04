@@ -145,8 +145,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
   fastify.get('/me', {
     onRequest: [fastify.authenticate],
     handler: async (request, reply) => {
+      const userId = (request.user as { userId: string; email: string }).userId;
       const user = await prisma.user.findUnique({
-        where: { id: request.user!.userId },
+        where: { id: userId },
         select: {
           id: true,
           email: true,

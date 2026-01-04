@@ -1,4 +1,4 @@
-import cron from 'node-cron';
+import cron, { ScheduledTask } from 'node-cron';
 import { projectionService } from './projections';
 import { playerSyncService } from './playerSync';
 
@@ -58,7 +58,7 @@ function getNextWeek(): { week: number; season: number } {
  * Scheduler service for automated tasks
  */
 export class SchedulerService {
-  private jobs: cron.ScheduledTask[] = [];
+  private jobs: ScheduledTask[] = [];
 
   /**
    * Initialize all scheduled jobs

@@ -249,12 +249,17 @@ export default async function leagueRoutes(fastify: FastifyInstance) {
           if (!existing) {
             await prisma.transaction.create({
               data: {
-                leagueId: id,
+                league: {
+                  connect: { id },
+                },
                 platformTransactionId: txn.transaction_id,
                 transactionType: txn.type,
                 week: currentWeek,
                 season: new Date().getFullYear(),
-                metadata: txn,
+                involvedTeams: [],
+                playersMoved: [],
+                status: 'completed',
+                metadata: txn as any,
               },
             });
             count++;
