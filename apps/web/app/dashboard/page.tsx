@@ -156,10 +156,10 @@ export default function DashboardPage() {
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">
-                    {league.name}
+                    {league.leagueName || 'My League'}
                   </h3>
                   <p className="text-sm text-gray-600 capitalize">
-                    {league.platform} • {league.season}
+                    {league.platform} • {(league.scoringSettings as any)?.season || new Date().getFullYear()}
                   </p>
                 </div>
                 <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">
@@ -171,13 +171,13 @@ export default function DashboardPage() {
                 <div className="flex justify-between">
                   <span>Teams:</span>
                   <span className="font-medium text-gray-900">
-                    {league.totalTeams}
+                    {(league.rosterSettings as any)?.totalTeams || 'N/A'}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Scoring:</span>
                   <span className="font-medium text-gray-900 uppercase">
-                    {league.scoringType}
+                    {(league.scoringSettings as any)?.scoringType || 'standard'}
                   </span>
                 </div>
               </div>
