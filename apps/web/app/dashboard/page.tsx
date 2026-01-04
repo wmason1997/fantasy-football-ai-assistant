@@ -36,8 +36,8 @@ export default function DashboardPage() {
 
     try {
       await apiClient.leagues.connect({
-        platform,
-        leagueId,
+        platformLeagueId: leagueId,
+        // platformUserId is optional - backend will auto-detect or use first roster
       });
       await loadLeagues();
       setShowConnectForm(false);

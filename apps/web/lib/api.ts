@@ -48,6 +48,14 @@ export const apiClient = {
 
   // League endpoints
   leagues: {
+    lookup: async (platformLeagueId: string): Promise<{ league: any; teams: any[] }> => {
+      const response = await api.post<{ league: any; teams: any[] }>(
+        '/leagues/lookup',
+        { platformLeagueId }
+      );
+      return response.data;
+    },
+
     connect: async (data: ConnectLeagueRequest): Promise<{ league: League }> => {
       const response = await api.post<{ league: League }>('/leagues/connect', data);
       return response.data;
@@ -66,6 +74,19 @@ export const apiClient = {
     sync: async (id: string): Promise<{ success: boolean; message: string }> => {
       const response = await api.post<{ success: boolean; message: string }>(
         `/leagues/${id}/sync`
+      );
+      return response.data;
+    },
+
+    getMatchups: async (id: string, week: number): Promise<{ matchups: any[] }> => {
+      const response = await api.get<{ matchups: any[] }>(`/leagues/${id}/matchups/${week}`);
+      return response.data;
+    },
+
+    syncTransactions: async (id: string, week?: number): Promise<{ success: boolean; message: string; count: number }> => {
+      const response = await api.post<{ success: boolean; message: string; count: number }>(
+        `/leagues/${id}/transactions/sync`,
+        { week }
       );
       return response.data;
     },

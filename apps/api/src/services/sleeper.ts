@@ -102,6 +102,18 @@ class SleeperService {
   async getTransactions(leagueId: string, week: number): Promise<any[] | null> {
     return this.get<any[]>(`/league/${leagueId}/transactions/${week}`);
   }
+
+  async getMatchups(leagueId: string, week: number): Promise<any[] | null> {
+    return this.get<any[]>(`/league/${leagueId}/matchups/${week}`);
+  }
+
+  async getPlayerWeekStats(playerId: string, season: number, week: number): Promise<any | null> {
+    return this.get<any>(`/stats/nfl/player/${playerId}?season_type=regular&season=${season}&week=${week}`);
+  }
+
+  async getTrendingPlayers(type: 'add' | 'drop', lookback_hours = 24, limit = 25): Promise<any[] | null> {
+    return this.get<any[]>(`/players/nfl/trending/${type}?lookback_hours=${lookback_hours}&limit=${limit}`);
+  }
 }
 
 export const sleeperService = new SleeperService();
