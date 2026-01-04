@@ -25,13 +25,6 @@ const server = Fastify({
 // Decorate server with Prisma client
 server.decorate('prisma', db);
 
-// Extend Fastify types
-declare module 'fastify' {
-  interface FastifyInstance {
-    prisma: typeof db;
-  }
-}
-
 // Register plugins
 server.register(cors, {
   origin: config.frontendUrl,

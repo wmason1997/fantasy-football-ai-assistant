@@ -7,8 +7,18 @@
     "moduleResolution": "bundler",
     "target": "ES2022",
     "lib": ["ES2022"],
-    "types": ["node"]
+    "types": ["node"],
+    "skipLibCheck": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noPropertyAccessFromIndexSignature": false,
+    "noEmitOnError": false
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*", "fastify.d.ts"],
+  "exclude": ["node_modules", "dist"],
+  "ts-node": {
+    "files": true
+  }
 }

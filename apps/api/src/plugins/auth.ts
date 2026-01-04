@@ -1,17 +1,8 @@
-import { FastifyInstance, FastifyRequest } from 'fastify';
+import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import fp from 'fastify-plugin';
 
-declare module 'fastify' {
-  interface FastifyRequest {
-    user?: {
-      userId: string;
-      email: string;
-    };
-  }
-}
-
 async function authPlugin(fastify: FastifyInstance) {
-  fastify.decorate('authenticate', async function (request: FastifyRequest, reply: any) {
+  fastify.decorate('authenticate', async function (request: FastifyRequest, reply: FastifyReply) {
     try {
       const payload = await request.jwtVerify();
       request.user = payload as { userId: string; email: string };

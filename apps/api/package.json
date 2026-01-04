@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
+    "build:strict": "tsc --noEmitOnError",
     "start": "node dist/server.js",
     "test": "vitest",
     "test:watch": "vitest --watch",
