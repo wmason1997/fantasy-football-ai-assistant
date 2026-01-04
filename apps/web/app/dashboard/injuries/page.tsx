@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import InjuryAlertCard from '../../../components/InjuryAlertCard';
 import { apiClient, getErrorMessage } from '../../../lib/api';
@@ -43,7 +43,7 @@ interface MonitoringStatus {
   lastCheck: string | null;
 }
 
-export default function InjuryAlertsPage() {
+function InjuryAlertsPageContent() {
   const searchParams = useSearchParams();
   const leagueId = searchParams.get('leagueId');
 
@@ -286,5 +286,19 @@ export default function InjuryAlertsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function InjuryAlertsPage() {
+  return (
+    <Suspense fallback={
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    }>
+      <InjuryAlertsPageContent />
+    </Suspense>
   );
 }

@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import WaiverRecommendationCard from '@/components/WaiverRecommendationCard';
 import { apiClient, getErrorMessage } from '@/lib/api';
 
-export default function WaiversPage() {
+function WaiversPageContent() {
   const searchParams = useSearchParams();
   const leagueId = searchParams.get('leagueId');
 
@@ -227,5 +227,19 @@ export default function WaiversPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function WaiversPage() {
+  return (
+    <Suspense fallback={
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    }>
+      <WaiversPageContent />
+    </Suspense>
   );
 }
