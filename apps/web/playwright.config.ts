@@ -17,6 +17,8 @@ export default defineConfig({
   reporter: 'html',
   /* Global setup */
   globalSetup: './e2e/setup/global-setup.ts',
+  /* Increase timeouts for dev mode (Next.js pages compile on first request) */
+  timeout: 120 * 1000, // 2 minutes per test
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
@@ -24,6 +26,9 @@ export default defineConfig({
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    /* Increase navigation timeout for dev server compilation */
+    navigationTimeout: 120 * 1000, // 2 minutes
+    actionTimeout: 10 * 1000, // 10 seconds for actions
   },
 
   /* Configure projects for major browsers */
