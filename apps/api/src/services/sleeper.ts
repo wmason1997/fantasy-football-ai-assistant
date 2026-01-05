@@ -118,6 +118,14 @@ class SleeperService {
   async getTrendingPlayers(type: 'add' | 'drop', lookback_hours = 24, limit = 25): Promise<any[] | null> {
     return this.get<any[]>(`/players/nfl/trending/${type}?lookback_hours=${lookback_hours}&limit=${limit}`);
   }
+
+  async getUserByUsername(username: string): Promise<SleeperUser | null> {
+    return this.get<SleeperUser>(`/user/${username}`);
+  }
+
+  async getUserLeagues(userId: string, season: string): Promise<SleeperLeague[] | null> {
+    return this.get<SleeperLeague[]>(`/user/${userId}/leagues/nfl/${season}`);
+  }
 }
 
 export const sleeperService = new SleeperService();

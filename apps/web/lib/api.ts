@@ -48,6 +48,14 @@ export const apiClient = {
 
   // League endpoints
   leagues: {
+    search: async (username: string, season?: string): Promise<{ sleeperUserId: string; sleeperUsername: string; leagues: any[] }> => {
+      const response = await api.post<{ sleeperUserId: string; sleeperUsername: string; leagues: any[] }>(
+        '/leagues/search',
+        { username, season }
+      );
+      return response.data;
+    },
+
     lookup: async (platformLeagueId: string): Promise<{ league: any; teams: any[] }> => {
       const response = await api.post<{ league: any; teams: any[] }>(
         '/leagues/lookup',

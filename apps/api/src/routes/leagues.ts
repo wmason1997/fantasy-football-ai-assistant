@@ -13,7 +13,58 @@ const lookupLeagueSchema = z.object({
   platformLeagueId: z.string(),
 });
 
+const searchLeaguesSchema = z.object({
+  username: z.string(),
+  season: z.string().optional(),
+});
+
 export default async function leagueRoutes(fastify: FastifyInstance) {
+  // Search for user's leagues by Sleeper username
+  fastify.post('/search', {
+    onRequest: [fastify.authenticate],
+    handler: async (request, reply) => {
+      const body = searchLeaguesSchema.parse(request.body);
+      const season = body.season || new Date().getFullYear().toString();
+
+      try {
+        // Get user info from Sleeper
+        const user = await sleeperService.getUserByUsername(body.username);
+
+        if (!user) {
+          return reply.status(404).send({ error: 'Sleeper user not found' });
+        }
+
+        // Get user's leagues for the season
+        const leagues = await sleeperService.getUserLeagues(user.user_id, season);
+
+        if (!leagues || leagues.length === 0) {
+          return reply.send({
+            sleeperUserId: user.user_id,
+            sleeperUsername: user.display_name,
+            leagues: []
+          });
+        }
+
+        // Format leagues for response
+        const formattedLeagues = leagues.map(league => ({
+          id: league.league_id,
+          name: league.name,
+          season: league.season,
+          totalRosters: league.roster_positions?.length || 0,
+        }));
+
+        return {
+          sleeperUserId: user.user_id,
+          sleeperUsername: user.display_name,
+          leagues: formattedLeagues,
+        };
+      } catch (error) {
+        fastify.log.error(error);
+        return reply.status(500).send({ error: 'Failed to search for leagues' });
+      }
+    },
+  });
+
   // Lookup league details before connecting (helps user find their team)
   fastify.post('/lookup', {
     onRequest: [fastify.authenticate],
