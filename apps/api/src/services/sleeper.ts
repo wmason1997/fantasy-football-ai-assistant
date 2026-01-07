@@ -126,6 +126,14 @@ class SleeperService {
   async getUserLeagues(userId: string, season: string): Promise<SleeperLeague[] | null> {
     return this.get<SleeperLeague[]>(`/user/${userId}/leagues/nfl/${season}`);
   }
+
+  /**
+   * Get all player stats for a specific week
+   * Returns object with playerId as key and stats as value
+   */
+  async getWeekStats(season: number, week: number): Promise<Record<string, any> | null> {
+    return this.get<Record<string, any>>(`/stats/nfl/regular/${season}/${week}`);
+  }
 }
 
 export const sleeperService = new SleeperService();

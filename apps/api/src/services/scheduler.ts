@@ -1,6 +1,7 @@
 import cron, { ScheduledTask } from 'node-cron';
 import { projectionService } from './projections';
 import { playerSyncService } from './playerSync';
+import { playerStatsService } from './playerStats';
 
 /**
  * Get current NFL week and season
@@ -98,6 +99,21 @@ export class SchedulerService {
 
     this.jobs.push(projectionSyncJob);
 
+    // Weekly stats sync (runs on Tuesdays at 3 AM ET, after Monday Night Football)
+    // This syncs the previous week's stats from Sleeper API
+    const statsSyncJob = cron.schedule(
+      '0 8 * * 2', // Every Tuesday at 8:00 AM UTC (3:00 AM ET)
+      async () => {
+        console.log('Running scheduled weekly stats sync...');
+        await this.syncWeeklyStats();
+      },
+      {
+        timezone: 'UTC',
+      }
+    );
+
+    this.jobs.push(statsSyncJob);
+
     // Weekly transaction sync (runs after waivers clear - typically Wednesday 3 AM ET)
     // This would sync league transactions to update opponent profiles
     const transactionSyncJob = cron.schedule(
@@ -117,6 +133,7 @@ export class SchedulerService {
     console.log('✓ Scheduler service started');
     console.log('  - Daily player sync: 2:00 AM ET (7:00 AM UTC)');
     console.log('  - Daily projection sync: 3:00 AM ET (8:00 AM UTC)');
+    console.log('  - Weekly stats sync: Tuesdays 3:00 AM ET (after MNF)');
     console.log('  - Weekly transaction sync: Wednesdays 3:00 AM ET');
   }
 
@@ -181,10 +198,54 @@ export class SchedulerService {
   }
 
   /**
+   * Sync previous week's stats and regenerate projections
+   */
+  private async syncWeeklyStats() {
+    try {
+      const { week: currentWeek, season } = getCurrentWeekAndSeason();
+
+      // Don't run during offseason
+      if (currentWeek === 0) {
+        console.log('Offseason - skipping stats sync');
+        return;
+      }
+
+      // Sync previous week's stats (the week that just completed)
+      const prevWeek = Math.max(1, currentWeek - 1);
+
+      console.log(`Syncing stats for week ${prevWeek}, season ${season}...`);
+      const result = await playerStatsService.syncWeekStats(season, prevWeek);
+
+      if (result.success) {
+        console.log(
+          `✓ Stats sync complete: ${result.playersWithStats}/${result.playersProcessed} players`
+        );
+
+        // Regenerate projections for current week using updated historical data
+        console.log(`Regenerating projections for week ${currentWeek} with new stats...`);
+        await projectionService.syncWeekProjections(currentWeek, season, true);
+
+        console.log('✓ Scheduled weekly stats sync and projection update completed');
+      } else {
+        console.error('✗ Stats sync failed:', result.errors);
+      }
+    } catch (error) {
+      console.error('Error in scheduled weekly stats sync:', error);
+    }
+  }
+
+  /**
    * Manually trigger projection sync (for testing/admin)
    */
   async triggerProjectionSync() {
     await this.syncProjections();
+  }
+
+  /**
+   * Manually trigger stats sync (for testing/admin)
+   */
+  async triggerStatsSync() {
+    await this.syncWeeklyStats();
   }
 
   /**

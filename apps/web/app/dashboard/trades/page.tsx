@@ -3,22 +3,42 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { apiClient, getErrorMessage } from '@/lib/api';
+import TradeRecommendationCard from '@/components/TradeRecommendationCard';
 
-interface Player {
-  id: string;
-  name: string;
+interface PlayerValue {
+  playerId: string;
+  playerName: string;
   position: string;
-  team: string;
+  team?: string;
+  currentValue: number;
+  projectedValue: number;
+  performanceRatio: number;
+  zScore: number;
+  trend: 'up' | 'down' | 'stable';
+  injuryRisk: number;
+  isSellHigh: boolean;
+  isBuyLow: boolean;
 }
 
 interface TradeRecommendation {
   id: string;
-  myPlayers: Player[];
-  targetPlayers: Player[];
+  myPlayers: PlayerValue[];
+  targetPlayers: PlayerValue[];
   targetTeamName: string;
   fairnessScore: number;
   acceptanceProbability: number;
+  myValueGain: number;
+  targetValueGain: number;
+  tradeType: string;
   reasoning: string;
+  sellHighPlayers?: PlayerValue[];
+  buyLowPlayers?: PlayerValue[];
+  confidence: number;
+  priority: number;
+  status: string;
+  week: number;
+  season: number;
+  createdAt?: string;
 }
 
 export default function TradesPage() {
@@ -26,12 +46,14 @@ export default function TradesPage() {
   const [leagues, setLeagues] = useState<any[]>([]);
   const [selectedLeague, setSelectedLeague] = useState<string>('');
   const [recommendations, setRecommendations] = useState<TradeRecommendation[]>([]);
-  const [sellHighPlayers, setSellHighPlayers] = useState<Player[]>([]);
-  const [buyLowPlayers, setBuyLowPlayers] = useState<Player[]>([]);
+  const [sellHighPlayers, setSellHighPlayers] = useState<PlayerValue[]>([]);
+  const [buyLowPlayers, setBuyLowPlayers] = useState<PlayerValue[]>([]);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
-  const [selectedTrade, setSelectedTrade] = useState<TradeRecommendation | null>(null);
   const [positionFilter, setPositionFilter] = useState<string>('all');
+  const [currentWeek, setCurrentWeek] = useState<number>(1);
+  const [currentSeason, setCurrentSeason] = useState<number>(new Date().getFullYear());
 
   useEffect(() => {
     loadLeagues();
@@ -60,32 +82,71 @@ export default function TradesPage() {
   const loadTradeData = async () => {
     try {
       setLoading(true);
-      // Mock data for E2E tests
-      setSellHighPlayers([
-        { id: '1', name: 'Player A', position: 'RB', team: 'KC' },
-        { id: '2', name: 'Player B', position: 'WR', team: 'BUF' },
-      ]);
+      setError('');
 
-      setBuyLowPlayers([
-        { id: '3', name: 'Player C', position: 'WR', team: 'SF' },
-        { id: '4', name: 'Player D', position: 'RB', team: 'DAL' },
-      ]);
+      // Fetch existing recommendations
+      const response = await apiClient.trades.getRecommendations(selectedLeague, {
+        week: currentWeek,
+        season: currentSeason,
+        status: 'pending',
+      });
 
-      setRecommendations([
-        {
-          id: '1',
-          myPlayers: [{ id: '1', name: 'Player A', position: 'RB', team: 'KC' }],
-          targetPlayers: [{ id: '3', name: 'Player C', position: 'WR', team: 'SF' }],
-          targetTeamName: 'Team Alpha',
-          fairnessScore: 0.85,
-          acceptanceProbability: 0.72,
-          reasoning: 'This trade leverages Player A\'s overperformance to acquire undervalued Player C.',
-        },
-      ]);
+      if (response.recommendations && response.recommendations.length > 0) {
+        setRecommendations(response.recommendations);
+
+        // Extract sell-high and buy-low players
+        const sellHigh: PlayerValue[] = [];
+        const buyLow: PlayerValue[] = [];
+
+        response.recommendations.forEach((rec: TradeRecommendation) => {
+          if (rec.sellHighPlayers) {
+            rec.sellHighPlayers.forEach((player: PlayerValue) => {
+              if (!sellHigh.find(p => p.playerId === player.playerId)) {
+                sellHigh.push(player);
+              }
+            });
+          }
+          if (rec.buyLowPlayers) {
+            rec.buyLowPlayers.forEach((player: PlayerValue) => {
+              if (!buyLow.find(p => p.playerId === player.playerId)) {
+                buyLow.push(player);
+              }
+            });
+          }
+        });
+
+        setSellHighPlayers(sellHigh);
+        setBuyLowPlayers(buyLow);
+      } else {
+        // No recommendations found - user needs to generate them
+        setRecommendations([]);
+        setSellHighPlayers([]);
+        setBuyLowPlayers([]);
+      }
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const generateRecommendations = async () => {
+    try {
+      setGenerating(true);
+      setError('');
+
+      await apiClient.trades.generateRecommendations(selectedLeague, {
+        week: currentWeek,
+        season: currentSeason,
+        maxRecommendations: 10,
+      });
+
+      // Reload recommendations
+      await loadTradeData();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -125,27 +186,53 @@ export default function TradesPage() {
 
   return (
     <div>
-      <div className="mb-6 flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Trade Recommendations</h1>
-        
-        {leagues.length > 1 && (
-          <select
-            value={selectedLeague}
-            onChange={(e) => setSelectedLeague(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Trade Analyzer</h1>
+          <p className="mt-1 text-sm text-gray-600">
+            AI-powered trade recommendations based on performance data
+          </p>
+        </div>
+
+        <div className="flex gap-3">
+          {leagues.length > 1 && (
+            <select
+              value={selectedLeague}
+              onChange={(e) => setSelectedLeague(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {leagues.map((league) => (
+                <option key={league.id} value={league.id}>
+                  {league.leagueName || 'My League'}
+                </option>
+              ))}
+            </select>
+          )}
+
+          <button
+            onClick={generateRecommendations}
+            disabled={generating || !selectedLeague}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
           >
-            {leagues.map((league) => (
-              <option key={league.id} value={league.id}>
-                {league.name}
-              </option>
-            ))}
-          </select>
-        )}
+            {generating ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Generating...
+              </span>
+            ) : (
+              'Generate Recommendations'
+            )}
+          </button>
+        </div>
       </div>
 
       {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          {error}
+        <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          <p className="font-medium">Error</p>
+          <p className="text-sm">{error}</p>
         </div>
       )}
 
@@ -169,84 +256,172 @@ export default function TradesPage() {
         </div>
       </div>
 
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Sell High</h2>
-        <p className="text-sm text-gray-600 mb-4">
-          Players performing above projections - trade while their value is high
-        </p>
-        
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {sellHighPlayers.map((player) => (
-            <div
-              key={player.id}
-              data-testid="player-card"
-              className="bg-white rounded-lg shadow p-4 hover:shadow-md transition"
-            >
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h3 className="font-semibold text-gray-900">{player.name}</h3>
-                  <p className="text-sm text-gray-600">
-                    {player.position} - {player.team}
-                  </p>
-                </div>
-                <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">
-                  Sell
-                </span>
-              </div>
-              <div className="mt-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Performance Ratio:</span>
-                  <span className="font-medium text-green-600">1.25x</span>
-                </div>
-              </div>
+      {sellHighPlayers.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Sell High Candidates</h2>
+              <p className="text-sm text-gray-600">
+                Players outperforming projections - trade while value is peak
+              </p>
             </div>
-          ))}
-        </div>
-      </div>
+            <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+              {sellHighPlayers.length} players
+            </span>
+          </div>
 
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Buy Low</h2>
-        <p className="text-sm text-gray-600 mb-4">
-          Undervalued players across your league - buy while they\'re cheap
-        </p>
-        
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {buyLowPlayers.map((player) => (
-            <div
-              key={player.id}
-              data-testid="player-card"
-              className="bg-white rounded-lg shadow p-4 hover:shadow-md transition"
-            >
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h3 className="font-semibold text-gray-900">{player.name}</h3>
-                  <p className="text-sm text-gray-600">
-                    {player.position} - {player.team}
-                  </p>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {sellHighPlayers.map((player) => (
+              <div
+                key={player.playerId}
+                data-testid="player-card"
+                className="bg-white rounded-lg shadow p-4 hover:shadow-md transition border-l-4 border-green-500"
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{player.playerName}</h3>
+                    <p className="text-sm text-gray-600">
+                      {player.position} {player.team && `- ${player.team}`}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">
+                      Sell High
+                    </span>
+                    {player.trend === 'up' && (
+                      <span className="text-xs text-green-600">↗ Trending Up</span>
+                    )}
+                  </div>
                 </div>
-                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded">
-                  Buy
-                </span>
-              </div>
-              <div className="mt-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Value Discount:</span>
-                  <span className="font-medium text-blue-600">25%</span>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Performance:</span>
+                    <span className="font-medium text-green-600">
+                      {player.performanceRatio.toFixed(2)}x
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Z-Score:</span>
+                    <span className="font-medium">{player.zScore.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Projected Value:</span>
+                    <span className="font-medium">{player.projectedValue.toFixed(1)} pts</span>
+                  </div>
                 </div>
               </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {buyLowPlayers.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Buy Low Targets</h2>
+              <p className="text-sm text-gray-600">
+                Undervalued players available across your league
+              </p>
             </div>
-          ))}
-        </div>
-      </div>
+            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+              {buyLowPlayers.length} players
+            </span>
+          </div>
 
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">
-          Recommended Trade Packages
-        </h2>
-        <p className="text-sm text-gray-600 mb-4">
-          AI-generated trade packages optimized for fairness and acceptance probability
-        </p>
-        
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {buyLowPlayers.map((player) => (
+              <div
+                key={player.playerId}
+                data-testid="player-card"
+                className="bg-white rounded-lg shadow p-4 hover:shadow-md transition border-l-4 border-blue-500"
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{player.playerName}</h3>
+                    <p className="text-sm text-gray-600">
+                      {player.position} {player.team && `- ${player.team}`}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded">
+                      Buy Low
+                    </span>
+                    {player.injuryRisk > 0 && player.injuryRisk < 0.3 && (
+                      <span className="text-xs text-yellow-600">⚠ Low Risk</span>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Performance:</span>
+                    <span className="font-medium text-blue-600">
+                      {player.performanceRatio.toFixed(2)}x
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Discount:</span>
+                    <span className="font-medium text-blue-600">
+                      {((1 - player.performanceRatio) * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Projected Value:</span>
+                    <span className="font-medium">{player.projectedValue.toFixed(1)} pts</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {recommendations.length === 0 && !loading && (
+        <div className="bg-white rounded-lg shadow p-12 text-center">
+          <div className="max-w-md mx-auto">
+            <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No Trade Recommendations Yet
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Click "Generate Recommendations" to analyze your roster and find optimal trade opportunities based on player performance data.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {filteredRecommendations.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">
+                Trade Recommendations
+              </h2>
+              <p className="text-sm text-gray-600">
+                AI-generated packages optimized for value and acceptance probability
+              </p>
+            </div>
+            <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
+              {filteredRecommendations.length} packages
+            </span>
+          </div>
+
+          <div className="space-y-4">
+            {filteredRecommendations.map((trade) => (
+              <TradeRecommendationCard
+                key={trade.id}
+                recommendation={trade}
+                onUpdate={loadTradeData}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Legacy card view for backward compatibility */}
+      <div className="hidden">
         <div className="space-y-4">
           {filteredRecommendations.map((trade) => (
             <div
@@ -300,7 +475,8 @@ export default function TradesPage() {
         </div>
       </div>
 
-      {selectedTrade && (
+      {/* Remove modal - using TradeRecommendationCard instead */}
+      {false && selectedTrade && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
           onClick={() => setSelectedTrade(null)}

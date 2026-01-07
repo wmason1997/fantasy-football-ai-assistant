@@ -1,0 +1,360 @@
+{
+  "season": 2024,
+  "generatedAt": "2026-01-07T20:37:47.878Z",
+  "summary": {
+    "totalProjections": 1921,
+    "totalPlayers": 329,
+    "overallMAE": 8.68993231795334,
+    "overallRMSE": 11.23936653424124,
+    "overallMAPE": 110.44169233568188,
+    "overallBias": -7.343682660985223,
+    "withinRange": {
+      "within5": 40.760020822488286,
+      "within10": 66.42373763664757
+    }
+  },
+  "byPosition": [
+    {
+      "position": "QB",
+      "playersAnalyzed": 43,
+      "totalProjections": 254,
+      "mae": 13.437037429316327,
+      "rmse": 16.047838450218766,
+      "mape": 89.43428355523939,
+      "bias": -12.35965803979263,
+      "withinRange": {
+        "within5": 19.68503937007874,
+        "within10": 40.55118110236221
+      },
+      "topPlayers": [
+        {
+          "name": "Mitchell Trubisky",
+          "mae": 0.125,
+          "games": 4
+        },
+        {
+          "name": "Mac Jones",
+          "mae": 2.8666666666666667,
+          "games": 3
+        },
+        {
+          "name": "Jake Haener",
+          "mae": 4.3933333333333335,
+          "games": 3
+        },
+        {
+          "name": "Anthony Richardson",
+          "mae": 4.686763157894736,
+          "games": 4
+        },
+        {
+          "name": "Tyler Huntley",
+          "mae": 5.2376460268317855,
+          "games": 3
+        }
+      ],
+      "worstPlayers": [
+        {
+          "name": "Lamar Jackson",
+          "mae": 27.2575,
+          "games": 8
+        },
+        {
+          "name": "Joe Burrow",
+          "mae": 23.7375,
+          "games": 8
+        },
+        {
+          "name": "Justin Fields",
+          "mae": 22.755,
+          "games": 4
+        },
+        {
+          "name": "Baker Mayfield",
+          "mae": 21.3675,
+          "games": 8
+        },
+        {
+          "name": "Josh Allen",
+          "mae": 20.299999999999997,
+          "games": 8
+        }
+      ]
+    },
+    {
+      "position": "RB",
+      "playersAnalyzed": 87,
+      "totalProjections": 540,
+      "mae": 8.084159003796744,
+      "rmse": 10.90454855423105,
+      "mape": 132.35754229577608,
+      "bias": -6.5326746247082825,
+      "withinRange": {
+        "within5": 44.62962962962963,
+        "within10": 68.7037037037037
+      },
+      "topPlayers": [
+        {
+          "name": "Aaron Shampklin",
+          "mae": 0.7000000000000001,
+          "games": 3
+        },
+        {
+          "name": "Isaiah Davis",
+          "mae": 1.2666666666666666,
+          "games": 3
+        },
+        {
+          "name": "Julius Chestnut",
+          "mae": 1.3695065789473686,
+          "games": 4
+        },
+        {
+          "name": "Jamaal Williams",
+          "mae": 1.4166666666666667,
+          "games": 6
+        },
+        {
+          "name": "Will Shipley",
+          "mae": 1.873333333333333,
+          "games": 3
+        }
+      ],
+      "worstPlayers": [
+        {
+          "name": "Derrick Henry",
+          "mae": 23.55,
+          "games": 8
+        },
+        {
+          "name": "Bijan Robinson",
+          "mae": 19.825,
+          "games": 8
+        },
+        {
+          "name": "Chuba Hubbard",
+          "mae": 18.65,
+          "games": 8
+        },
+        {
+          "name": "Alvin Kamara",
+          "mae": 17.575,
+          "games": 8
+        },
+        {
+          "name": "Chase Brown",
+          "mae": 16.337500000000002,
+          "games": 8
+        }
+      ]
+    },
+    {
+      "position": "WR",
+      "playersAnalyzed": 136,
+      "totalProjections": 770,
+      "mae": 8.562840996093385,
+      "rmse": 11.200248676454043,
+      "mape": 110.64461181905456,
+      "bias": -7.0949242554925505,
+      "withinRange": {
+        "within5": 40.77922077922078,
+        "within10": 66.49350649350649
+      },
+      "topPlayers": [
+        {
+          "name": "Ashton Dulin",
+          "mae": 1.125,
+          "games": 4
+        },
+        {
+          "name": "Treylon Burks",
+          "mae": 1.4593859649122802,
+          "games": 3
+        },
+        {
+          "name": "Derius Davis",
+          "mae": 1.95844169246646,
+          "games": 3
+        },
+        {
+          "name": "Jahan Dotson",
+          "mae": 2.3544873205741625,
+          "games": 5
+        },
+        {
+          "name": "DeAndre Carter",
+          "mae": 2.369333333333333,
+          "games": 3
+        }
+      ],
+      "worstPlayers": [
+        {
+          "name": "Ja'Marr Chase",
+          "mae": 25.687500000000004,
+          "games": 8
+        },
+        {
+          "name": "Nico Collins",
+          "mae": 20.5,
+          "games": 3
+        },
+        {
+          "name": "Chris Godwin",
+          "mae": 18.160000000000004,
+          "games": 5
+        },
+        {
+          "name": "Garrett Wilson",
+          "mae": 17.9625,
+          "games": 8
+        },
+        {
+          "name": "Terry McLaurin",
+          "mae": 17.55,
+          "games": 8
+        }
+      ]
+    },
+    {
+      "position": "TE",
+      "playersAnalyzed": 63,
+      "totalProjections": 357,
+      "mae": 6.502854472548658,
+      "rmse": 8.409032060973326,
+      "mape": 91.80044541575069,
+      "bias": -5.538166038021147,
+      "withinRange": {
+        "within5": 49.85994397759104,
+        "within10": 81.23249299719888
+      },
+      "topPlayers": [
+        {
+          "name": "Durham Smythe",
+          "mae": 1.2270833333333335,
+          "games": 3
+        },
+        {
+          "name": "Hunter Long",
+          "mae": 1.4194375,
+          "games": 4
+        },
+        {
+          "name": "Gerald Everett",
+          "mae": 1.4252500000000001,
+          "games": 3
+        },
+        {
+          "name": "Hayden Hurst",
+          "mae": 1.8399999999999999,
+          "games": 3
+        },
+        {
+          "name": "Lucas Krull",
+          "mae": 2.3279690799396673,
+          "games": 3
+        }
+      ],
+      "worstPlayers": [
+        {
+          "name": "Dallas Goedert",
+          "mae": 15.34646153846154,
+          "games": 3
+        },
+        {
+          "name": "Cade Otton",
+          "mae": 14.387500000000001,
+          "games": 8
+        },
+        {
+          "name": "Brock Bowers",
+          "mae": 13.942857142857141,
+          "games": 7
+        },
+        {
+          "name": "Mark Andrews",
+          "mae": 13.866666666666667,
+          "games": 6
+        },
+        {
+          "name": "Cole Kmet",
+          "mae": 13.39644230769231,
+          "games": 6
+        }
+      ]
+    }
+  ],
+  "byWeek": [
+    {
+      "week": 2,
+      "projectionsAnalyzed": 0,
+      "mae": 0,
+      "rmse": 0,
+      "mape": 0,
+      "bias": 0
+    },
+    {
+      "week": 3,
+      "projectionsAnalyzed": 309,
+      "mae": 9.208349514563109,
+      "rmse": 12.180058879340733,
+      "mape": 100,
+      "bias": -9.188155339805828
+    },
+    {
+      "week": 4,
+      "projectionsAnalyzed": 295,
+      "mae": 9.104052993449018,
+      "rmse": 11.660570057148883,
+      "mape": 97.24801624313821,
+      "bias": -8.97310991574438
+    },
+    {
+      "week": 5,
+      "projectionsAnalyzed": 274,
+      "mae": 9.548336045314729,
+      "rmse": 12.268239859452017,
+      "mape": 103.594024456629,
+      "bias": -9.112078370276954
+    },
+    {
+      "week": 6,
+      "projectionsAnalyzed": 272,
+      "mae": 8.325025464449917,
+      "rmse": 10.943528926011671,
+      "mape": 134.37966941657146,
+      "bias": -7.423402995210921
+    },
+    {
+      "week": 7,
+      "projectionsAnalyzed": 295,
+      "mae": 7.340775786587061,
+      "rmse": 9.728501843241274,
+      "mape": 131.88193073187523,
+      "bias": -5.219283636296943
+    },
+    {
+      "week": 8,
+      "projectionsAnalyzed": 315,
+      "mae": 7.746517554566877,
+      "rmse": 10.21788733682201,
+      "mape": 102.41857932979539,
+      "bias": -6.056317432305168
+    },
+    {
+      "week": 9,
+      "projectionsAnalyzed": 302,
+      "mae": 6.9925019446560475,
+      "rmse": 9.697375943979722,
+      "mape": 114.805652439393,
+      "bias": -5.109040382028621
+    },
+    {
+      "week": 10,
+      "projectionsAnalyzed": 276,
+      "mae": 6.695746411538479,
+      "rmse": 9.48404126951656,
+      "mape": 114.65316360400992,
+      "bias": -3.6506322721723667
+    }
+  ]
+}

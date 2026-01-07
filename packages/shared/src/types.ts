@@ -81,6 +81,39 @@ export interface Roster {
   player?: Player;
 }
 
+// Projection types
+export interface PlayerProjection {
+  id: string;
+  playerId: string;
+  week: number;
+  season: number;
+  projectedPoints: number;
+  stats?: Record<string, any>;
+  confidence?: number;
+  source: string;
+  basedOnWeeks?: number;
+  calculationMethod?: string;
+  recentAverage?: number;
+  trendMultiplier?: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Stats types
+export interface PlayerWeekStats {
+  id: string;
+  playerId: string;
+  week: number;
+  season: number;
+  stats: Record<string, any>;
+  pprPoints?: number;
+  halfPprPoints?: number;
+  stdPoints?: number;
+  source: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // API Error types
 export interface ApiError {
   error: string;

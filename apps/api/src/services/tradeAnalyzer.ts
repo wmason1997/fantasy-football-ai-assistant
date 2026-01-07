@@ -1,6 +1,8 @@
 import { db } from '@fantasy-football/database';
 import { projectionService } from './projections';
 import { sleeperService } from './sleeper';
+import { playerStatsService } from './playerStats';
+import { cacheService } from './cache';
 
 /**
  * Player value data for trade analysis
@@ -64,26 +66,213 @@ export class TradeAnalyzerService {
    */
   async calculatePerformanceRatio(
     playerId: string,
+    leagueId: string,
     season: number,
+    currentWeek: number,
     weeksToAnalyze: number = 4
   ): Promise<{ ratio: number; zScore: number } | null> {
-    // TODO: In production, fetch actual game stats from Sleeper API
-    // For now, we'll use mock data since Sleeper doesn't provide historical stats easily
+    // Try cache first
+    const cached = await cacheService.getPerformanceRatio(playerId, season, currentWeek);
+    if (cached) {
+      return cached;
+    }
 
-    // This would need to:
-    // 1. Fetch player's actual points for last N weeks
-    // 2. Fetch player's projections for those weeks
-    // 3. Calculate ratio = avg(actualPoints) / avg(projectedPoints)
-    // 4. Calculate z-score against all players at that position
+    // 1. Fetch recent actual stats
+    let recentStats = await playerStatsService.getPlayerRecentStats(
+      playerId,
+      season,
+      currentWeek,
+      weeksToAnalyze
+    );
 
-    // Mock implementation for now
-    const mockRatio = 0.9 + Math.random() * 0.4; // Random between 0.9 and 1.3
-    const mockZScore = (mockRatio - 1.0) / 0.15; // Normalize around 1.0
+    // If insufficient data, try on-demand fetch
+    if (recentStats.length < 2) {
+      console.log(
+        `[TradeAnalyzer] Insufficient stats for player ${playerId}, attempting on-demand fetch...`
+      );
 
-    return {
-      ratio: mockRatio,
-      zScore: mockZScore,
-    };
+      // Try to sync recent weeks
+      for (let week = Math.max(1, currentWeek - weeksToAnalyze); week < currentWeek; week++) {
+        await playerStatsService.syncWeekStats(season, week).catch(err => {
+          console.error(`Failed to sync week ${week}:`, err);
+        });
+      }
+
+      // Retry fetch
+      recentStats = await playerStatsService.getPlayerRecentStats(
+        playerId,
+        season,
+        currentWeek,
+        weeksToAnalyze
+      );
+
+      if (recentStats.length < 2) {
+        console.log(
+          `[TradeAnalyzer] Still insufficient data for player ${playerId} after on-demand fetch`
+        );
+        return null;
+      }
+    }
+
+    // 2. Get league scoring settings
+    const league = await db.league.findUnique({
+      where: { id: leagueId },
+    });
+
+    if (!league || !league.scoringSettings) {
+      console.error(`[TradeAnalyzer] League ${leagueId} not found or missing scoring settings`);
+      return null;
+    }
+
+    const scoringSettings = league.scoringSettings as Record<string, number>;
+
+    // 3. Calculate average actual points
+    const actualPoints = recentStats.map((stat) =>
+      playerStatsService.getFantasyPoints(stat, scoringSettings) ?? 0
+    );
+
+    const avgActual = actualPoints.reduce((a, b) => a + b, 0) / actualPoints.length;
+
+    // 4. Get historical projections for those weeks (or generate them)
+    const projectedPoints: number[] = [];
+
+    for (const stat of recentStats) {
+      let projection = await projectionService.getPlayerProjection(
+        playerId,
+        stat.week,
+        season
+      );
+
+      // If no projection exists, generate one from history
+      if (!projection) {
+        const generated = await projectionService.generateProjectionFromHistory(
+          playerId,
+          season,
+          stat.week
+        );
+        if (generated) {
+          projectedPoints.push(generated.projectedPoints);
+        }
+      } else {
+        projectedPoints.push(projection.projectedPoints);
+      }
+    }
+
+    if (projectedPoints.length === 0) {
+      console.log(`[TradeAnalyzer] No projections available for player ${playerId}`);
+      return null;
+    }
+
+    const avgProjected =
+      projectedPoints.reduce((a, b) => a + b, 0) / projectedPoints.length;
+
+    // 5. Calculate ratio
+    if (avgProjected === 0) {
+      console.log(`[TradeAnalyzer] Average projected points is 0 for player ${playerId}`);
+      return null;
+    }
+
+    const ratio = avgActual / avgProjected;
+
+    // 6. Calculate z-score vs position peers
+    const player = await db.player.findUnique({
+      where: { id: playerId },
+    });
+
+    if (!player) {
+      return null;
+    }
+
+    const zScore = await this.calculatePositionZScore(
+      player.position,
+      ratio,
+      season,
+      currentWeek,
+      weeksToAnalyze
+    );
+
+    const result = { ratio, zScore };
+
+    // Cache the result
+    await cacheService.setPerformanceRatio(playerId, season, currentWeek, result);
+
+    return result;
+  }
+
+  /**
+   * Calculate position z-score
+   * Compare player's ratio against all players at same position
+   */
+  private async calculatePositionZScore(
+    position: string,
+    playerRatio: number,
+    season: number,
+    currentWeek: number,
+    weeksToAnalyze: number
+  ): Promise<number> {
+    // Get all players at this position with recent stats
+    const players = await db.player.findMany({
+      where: {
+        position,
+        status: { in: ['Active', 'Questionable'] },
+      },
+      include: {
+        weekStats: {
+          where: {
+            season,
+            week: {
+              gte: Math.max(1, currentWeek - weeksToAnalyze),
+              lt: currentWeek,
+            },
+          },
+        },
+        projections: {
+          where: {
+            season,
+            week: {
+              gte: Math.max(1, currentWeek - weeksToAnalyze),
+              lt: currentWeek,
+            },
+          },
+        },
+      },
+    });
+
+    // Calculate ratios for all players with sufficient data
+    const ratios: number[] = [];
+
+    for (const player of players) {
+      if (player.weekStats.length < 2 || player.projections.length < 2) {
+        continue; // Skip players with insufficient data
+      }
+
+      const avgActual =
+        player.weekStats.reduce((sum, s) => sum + (s.pprPoints ?? 0), 0) /
+        player.weekStats.length;
+      const avgProj =
+        player.projections.reduce((sum, p) => sum + p.projectedPoints, 0) /
+        player.projections.length;
+
+      if (avgProj > 0) {
+        ratios.push(avgActual / avgProj);
+      }
+    }
+
+    // If not enough peer data, use default distribution
+    if (ratios.length < 10) {
+      // Assume normal distribution centered at 1.0 with std dev of 0.15
+      return (playerRatio - 1.0) / 0.15;
+    }
+
+    // Calculate z-score from actual peer distribution
+    const mean = ratios.reduce((sum, r) => sum + r, 0) / ratios.length;
+    const variance =
+      ratios.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / ratios.length;
+    const stdDev = Math.sqrt(variance);
+
+    if (stdDev === 0) return 0;
+
+    return (playerRatio - mean) / stdDev;
   }
 
   /**
@@ -91,6 +280,7 @@ export class TradeAnalyzerService {
    */
   async calculatePlayerValue(
     playerId: string,
+    leagueId: string,
     season: number,
     currentWeek: number
   ): Promise<PlayerValue | null> {
@@ -115,7 +305,12 @@ export class TradeAnalyzerService {
     }
 
     // Calculate performance ratio
-    const perfData = await this.calculatePerformanceRatio(playerId, season);
+    const perfData = await this.calculatePerformanceRatio(
+      playerId,
+      leagueId,
+      season,
+      currentWeek
+    );
     const performanceRatio = perfData?.ratio || 1.0;
     const zScore = perfData?.zScore || 0;
 
@@ -177,6 +372,7 @@ export class TradeAnalyzerService {
     for (const rosterEntry of roster) {
       const value = await this.calculatePlayerValue(
         rosterEntry.playerId,
+        leagueId,
         season,
         currentWeek
       );
@@ -219,7 +415,7 @@ export class TradeAnalyzerService {
 
       // Get value for each player on this team
       for (const playerId of roster.players || []) {
-        const value = await this.calculatePlayerValue(playerId, season, currentWeek);
+        const value = await this.calculatePlayerValue(playerId, leagueId, season, currentWeek);
         if (value) {
           playerValues.push(value);
         }

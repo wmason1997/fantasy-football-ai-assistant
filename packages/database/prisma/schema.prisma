@@ -75,6 +75,7 @@ model Player {
   // Relations
   rosters     Roster[]
   projections PlayerProjection[]
+  weekStats   PlayerWeekStats[]
 
   @@index([status])
   @@map("players")
@@ -143,6 +144,12 @@ model PlayerProjection {
   // Source of projection (for tracking which model/API it came from)
   source      String   @db.VarChar(50) @default("sleeper") // 'sleeper', 'espn', 'internal_ml', etc.
 
+  // NEW: Metadata about projection calculation
+  basedOnWeeks      Int?    // Number of weeks analyzed
+  calculationMethod String? @default("weighted_average")
+  recentAverage     Float?  // Last N weeks average
+  trendMultiplier   Float?  // Trend adjustment factor
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -153,6 +160,35 @@ model PlayerProjection {
   @@index([playerId, week, season])
   @@index([week, season])
   @@map("player_projections")
+}
+
+// Player Week Stats (historical weekly stats from Sleeper API)
+model PlayerWeekStats {
+  id             String   @id @default(uuid())
+  playerId       String
+  week           Int      // 1-18
+  season         Int
+
+  // Raw stats from Sleeper (all stats as JSON)
+  stats          Json
+
+  // Pre-calculated fantasy points (from Sleeper)
+  pprPoints      Float?
+  halfPprPoints  Float?
+  stdPoints      Float?
+
+  // Metadata
+  source         String   @default("sleeper")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, week, season, source])
+  @@index([playerId, season])
+  @@index([week, season])
+  @@map("player_week_stats")
 }
 
 // Trade Recommendations (AI-generated trade suggestions)

@@ -56,6 +56,10 @@ export const CACHE_KEYS = {
     `projection:${playerId}:${week}:${season}`,
   PLAYER_PROJECTIONS_WEEK: (week: number, season: number) =>
     `projections:week:${week}:${season}`,
+  PLAYER_WEEK_STATS: (playerId: string, week: number, season: number) =>
+    `stats:${playerId}:${week}:${season}`,
+  PERFORMANCE_RATIO: (playerId: string, season: number, week: number) =>
+    `performance:${playerId}:${season}:${week}`,
   ALL_PLAYERS: 'players:all',
   LEAGUE_ROSTERS: (leagueId: string) => `league:${leagueId}:rosters`,
   SLEEPER_PLAYERS: 'sleeper:players',
@@ -65,6 +69,9 @@ export const CACHE_KEYS = {
 export const CACHE_TTL = {
   PLAYER_PROJECTION: 24 * 60 * 60, // 24 hours
   PLAYER_PROJECTIONS_WEEK: 24 * 60 * 60, // 24 hours
+  WEEK_STATS_COMPLETED: 24 * 60 * 60, // 24 hours for past weeks
+  WEEK_STATS_CURRENT: 60 * 60, // 1 hour for current week
+  PERFORMANCE_RATIO: 4 * 60 * 60, // 4 hours
   ALL_PLAYERS: 6 * 60 * 60, // 6 hours
   LEAGUE_ROSTERS: 15 * 60, // 15 minutes
   SLEEPER_PLAYERS: 24 * 60 * 60, // 24 hours
@@ -177,6 +184,78 @@ export class CacheService {
       await this.redis.del(key);
     } catch (error) {
       console.error('Error invalidating week projections:', error);
+    }
+  }
+
+  /**
+   * Get player week stats from cache
+   */
+  async getPlayerWeekStats(
+    playerId: string,
+    week: number,
+    season: number
+  ): Promise<any | null> {
+    try {
+      const key = CACHE_KEYS.PLAYER_WEEK_STATS(playerId, week, season);
+      const cached = await this.redis.get(key);
+      return cached ? JSON.parse(cached) : null;
+    } catch (error) {
+      console.error('Error getting player week stats from cache:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Set player week stats in cache
+   */
+  async setPlayerWeekStats(
+    playerId: string,
+    week: number,
+    season: number,
+    stats: any,
+    ttl: number = CACHE_TTL.WEEK_STATS_COMPLETED
+  ): Promise<void> {
+    try {
+      const key = CACHE_KEYS.PLAYER_WEEK_STATS(playerId, week, season);
+      await this.redis.setex(key, ttl, JSON.stringify(stats));
+    } catch (error) {
+      console.error('Error setting player week stats in cache:', error);
+    }
+  }
+
+  /**
+   * Get performance ratio from cache
+   */
+  async getPerformanceRatio(
+    playerId: string,
+    season: number,
+    week: number
+  ): Promise<any | null> {
+    try {
+      const key = CACHE_KEYS.PERFORMANCE_RATIO(playerId, season, week);
+      const cached = await this.redis.get(key);
+      return cached ? JSON.parse(cached) : null;
+    } catch (error) {
+      console.error('Error getting performance ratio from cache:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Set performance ratio in cache
+   */
+  async setPerformanceRatio(
+    playerId: string,
+    season: number,
+    week: number,
+    ratio: any,
+    ttl: number = CACHE_TTL.PERFORMANCE_RATIO
+  ): Promise<void> {
+    try {
+      const key = CACHE_KEYS.PERFORMANCE_RATIO(playerId, season, week);
+      await this.redis.setex(key, ttl, JSON.stringify(ratio));
+    } catch (error) {
+      console.error('Error setting performance ratio in cache:', error);
     }
   }
 

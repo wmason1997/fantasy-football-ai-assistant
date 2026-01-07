@@ -9,11 +9,16 @@ interface PlayerCardProps {
     currentValue?: number;
     projectedValue?: number;
     projectedPoints?: number;
+    performanceRatio?: number;
+    zScore?: number;
+    trend?: 'up' | 'down' | 'stable';
+    injuryRisk?: number;
     isSellHigh?: boolean;
     isBuyLow?: boolean;
   };
   size?: 'sm' | 'md' | 'lg';
   showBadges?: boolean;
+  showMetrics?: boolean;
 }
 
 const positionColors: Record<string, string> = {
@@ -25,11 +30,28 @@ const positionColors: Record<string, string> = {
   DEF: 'bg-gray-100 text-gray-800',
 };
 
-export default function PlayerCard({ player, size = 'md', showBadges = true }: PlayerCardProps) {
+export default function PlayerCard({
+  player,
+  size = 'md',
+  showBadges = true,
+  showMetrics = false
+}: PlayerCardProps) {
   const sizeClasses = {
     sm: 'p-2 text-sm',
     md: 'p-3',
     lg: 'p-4',
+  };
+
+  const getTrendIcon = () => {
+    if (!player.trend) return null;
+    switch (player.trend) {
+      case 'up':
+        return <span className="text-green-600" title="Trending Up">↗</span>;
+      case 'down':
+        return <span className="text-red-600" title="Trending Down">↘</span>;
+      default:
+        return <span className="text-gray-600" title="Stable">→</span>;
+    }
   };
 
   return (
@@ -43,6 +65,9 @@ export default function PlayerCard({ player, size = 'md', showBadges = true }: P
             <span className={`px-2 py-0.5 rounded text-xs font-medium ${positionColors[player.position] || 'bg-gray-100 text-gray-800'}`}>
               {player.position}
             </span>
+            {player.trend && (
+              <span className="text-sm">{getTrendIcon()}</span>
+            )}
           </div>
           {player.team && (
             <p className="text-sm text-gray-600 mt-1">{player.team}</p>
@@ -60,6 +85,27 @@ export default function PlayerCard({ player, size = 'md', showBadges = true }: P
                 <div>
                   <span className="text-gray-500">Projected:</span>{' '}
                   <span className="font-medium">{(player.projectedValue || player.projectedPoints || 0).toFixed(1)} pts</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {showMetrics && player.performanceRatio !== undefined && (
+            <div className="mt-2 pt-2 border-t border-gray-100 space-y-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Performance:</span>
+                <span className={`font-medium ${
+                  player.performanceRatio > 1.15 ? 'text-green-600' :
+                  player.performanceRatio < 0.85 ? 'text-red-600' :
+                  'text-gray-700'
+                }`}>
+                  {player.performanceRatio.toFixed(2)}x
+                </span>
+              </div>
+              {player.zScore !== undefined && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Z-Score:</span>
+                  <span className="font-medium">{player.zScore.toFixed(2)}</span>
                 </div>
               )}
             </div>
