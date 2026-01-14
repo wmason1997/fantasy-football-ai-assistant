@@ -1,0 +1,51 @@
+name: Run Database Migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to run migrations on'
+        required: true
+        type: choice
+        options:
+          - production
+          - staging
+
+jobs:
+  migrate:
+    name: Run Prisma Migrations
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm db:generate
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Run migrations on Railway
+        run: railway run --service api pnpm --filter database exec prisma migrate deploy
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+      - name: Verify migration success
+        run: |
+          echo "Migration completed for ${{ github.event.inputs.environment }} environment"
+          echo "Please verify the database state manually"

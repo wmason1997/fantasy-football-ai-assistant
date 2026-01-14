@@ -1,0 +1,15 @@
+{
+  "buildCommand": "cd ../.. && pnpm install && pnpm --filter @fantasy-football/web build",
+  "devCommand": "pnpm dev",
+  "installCommand": "pnpm install",
+  "framework": "nextjs",
+  "outputDirectory": ".next",
+  "env": {
+    "NEXT_PUBLIC_API_URL": "@api-url"
+  },
+  "build": {
+    "env": {
+      "NEXT_PUBLIC_API_URL": "@api-url"
+    }
+  }
+}

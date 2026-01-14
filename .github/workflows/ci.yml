@@ -1,0 +1,195 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  test-and-lint:
+    name: Test & Lint
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: fantasy_football_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm db:generate
+
+      - name: Run database migrations
+        run: pnpm --filter database exec prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/fantasy_football_test
+
+      - name: Lint code
+        run: pnpm lint
+
+      - name: Type check
+        run: pnpm --filter @fantasy-football/api build:strict
+
+      - name: Run unit tests
+        run: pnpm test:unit
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/fantasy_football_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test-jwt-secret-for-ci
+          SLEEPER_API_BASE_URL: https://api.sleeper.app/v1
+          FRONTEND_URL: http://localhost:3000
+          NODE_ENV: test
+
+      - name: Run integration tests
+        run: pnpm test:integration
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/fantasy_football_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test-jwt-secret-for-ci
+          SLEEPER_API_BASE_URL: https://api.sleeper.app/v1
+          FRONTEND_URL: http://localhost:3000
+          NODE_ENV: test
+
+      - name: Build frontend
+        run: pnpm --filter @fantasy-football/web build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3001
+
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: fantasy_football_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm db:generate
+
+      - name: Run database migrations
+        run: pnpm --filter database exec prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/fantasy_football_test
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @fantasy-football/web exec playwright install --with-deps chromium
+
+      - name: Build frontend
+        run: pnpm --filter @fantasy-football/web build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3001
+
+      - name: Start API server
+        run: pnpm --filter @fantasy-football/api dev &
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/fantasy_football_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test-jwt-secret-for-ci
+          SLEEPER_API_BASE_URL: https://api.sleeper.app/v1
+          FRONTEND_URL: http://localhost:3000
+          NODE_ENV: test
+          PORT: 3001
+
+      - name: Wait for API to be ready
+        run: |
+          timeout 60 bash -c 'until curl -f http://localhost:3001/health; do sleep 2; done'
+
+      - name: Start frontend server
+        run: pnpm --filter @fantasy-football/web start &
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3001
+          PORT: 3000
+
+      - name: Wait for frontend to be ready
+        run: |
+          timeout 60 bash -c 'until curl -f http://localhost:3000; do sleep 2; done'
+
+      - name: Run E2E tests
+        run: pnpm test:e2e
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3001
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 30

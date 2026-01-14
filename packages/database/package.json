@@ -6,6 +6,9 @@
   "scripts": {
     "generate": "prisma generate",
     "migrate": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "migrate:status": "prisma migrate status",
+    "migrate:production": "tsx scripts/migrate-deploy.ts",
     "push": "prisma db push",
     "studio": "prisma studio",
     "seed": "ts-node prisma/seed.ts"
@@ -15,6 +18,8 @@
   },
   "devDependencies": {
     "prisma": "^5.8.0",
-    "ts-node": "^10.9.2"
+    "ts-node": "^10.9.2",
+    "tsx": "^4.7.0",
+    "@types/node": "^20.11.0"
   }
 }
