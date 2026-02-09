@@ -1,43 +1,26 @@
 import { beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
-import { execSync } from 'child_process';
 import { db } from '@fantasy-football/database';
 
 /**
  * Global test setup for integration tests
  *
- * This file runs before all integration tests and sets up a test database
+ * This file runs before all integration tests.
+ * In CI, the database and migrations are handled by the workflow.
+ * Locally, ensure DATABASE_URL is set and migrations are run before tests.
  */
 
-const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL ||
-  'postgresql://dev_user:dev_password@localhost:5432/fantasy_football_test';
-
 beforeAll(async () => {
-  // Set environment variables for testing
-  process.env.NODE_ENV = 'test';
-  process.env.DATABASE_URL = TEST_DATABASE_URL;
-  process.env.JWT_SECRET = 'test-secret-key';
-  process.env.REDIS_URL = 'redis://localhost:6379';
-
-  console.log('Setting up test database...');
-
-  // Create test database if it doesn't exist
-  try {
-    execSync('psql -U dev_user -h localhost -c "CREATE DATABASE fantasy_football_test;"', {
-      stdio: 'ignore',
-    });
-  } catch (error) {
-    // Database might already exist, ignore error
+  // Use environment variables (CI provides these, locally use .env)
+  if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL environment variable is required for integration tests');
   }
 
-  // Run migrations
-  try {
-    execSync('pnpm --filter database migrate', {
-      env: { ...process.env, DATABASE_URL: TEST_DATABASE_URL },
-      stdio: 'inherit',
-    });
-  } catch (error) {
-    console.error('Migration failed:', error);
-  }
+  // Set defaults for optional env vars if not provided
+  process.env.NODE_ENV = process.env.NODE_ENV || 'test';
+  process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-key';
+  process.env.REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+
+  console.log('Integration test setup complete. Using DATABASE_URL from environment.');
 });
 
 afterAll(async () => {
