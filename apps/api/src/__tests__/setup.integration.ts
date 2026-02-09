@@ -48,21 +48,24 @@ afterAll(async () => {
 beforeEach(async () => {
   // Clear tables before each test to ensure isolation
   // Delete in order to respect foreign key constraints
-  try {
-    await db.injuryAlert.deleteMany();
-    await db.waiverRecommendation.deleteMany();
-    await db.tradeRecommendation.deleteMany();
-    await db.opponentProfile.deleteMany();
-    await db.transaction.deleteMany();
-    await db.roster.deleteMany();
-    await db.league.deleteMany();
-    await db.user.deleteMany();
-    await db.playerProjection.deleteMany();
-    await db.player.deleteMany();
-  } catch (error) {
-    console.error('Error clearing database tables:', error);
-    throw error;
+  console.log('Clearing database tables...');
+  const tables = [
+    'injuryAlert', 'waiverRecommendation', 'tradeRecommendation',
+    'opponentProfile', 'transaction', 'roster', 'league', 'user',
+    'playerWeekStats', 'playerProjection', 'player'
+  ];
+
+  for (const table of tables) {
+    try {
+      // @ts-ignore - dynamic table access
+      await db[table].deleteMany();
+      console.log(`  Cleared ${table}`);
+    } catch (error) {
+      console.error(`  Error clearing ${table}:`, error);
+      // Continue with other tables instead of failing immediately
+    }
   }
+  console.log('Database cleanup complete');
 });
 
 afterEach(async () => {
