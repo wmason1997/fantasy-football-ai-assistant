@@ -64,9 +64,14 @@ server.setErrorHandler((error, request, reply) => {
 
 // Health check endpoint
 server.get('/health', async () => {
-  const redisHealthy = await cacheService.healthCheck();
+  let redisHealthy = false;
+  try {
+    redisHealthy = await cacheService.healthCheck();
+  } catch {
+    // Redis check failed, but server is still healthy
+  }
   return {
-    status: redisHealthy ? 'ok' : 'degraded',
+    status: 'ok', // Server is healthy even if Redis is degraded
     timestamp: new Date().toISOString(),
     redis: redisHealthy ? 'connected' : 'disconnected',
   };
@@ -82,9 +87,13 @@ server.register(injuryRoutes, { prefix: '/injuries' });
 
 const start = async () => {
   try {
-    // Connect to Redis
-    await connectRedis();
-    console.log('✓ Redis connected');
+    // Connect to Redis (non-blocking - server can run with degraded cache)
+    try {
+      await connectRedis();
+      console.log('✓ Redis connected');
+    } catch (redisErr) {
+      console.warn('⚠ Redis connection failed, running with degraded cache:', redisErr);
+    }
 
     // Start scheduler service
     schedulerService.start();
