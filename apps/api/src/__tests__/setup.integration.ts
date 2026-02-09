@@ -20,31 +20,49 @@ beforeAll(async () => {
   process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-key';
   process.env.REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
-  console.log('Integration test setup complete. Using DATABASE_URL from environment.');
+  console.log('Integration test setup starting...');
+  console.log('DATABASE_URL:', process.env.DATABASE_URL?.replace(/:[^@]+@/, ':***@'));
+
+  // Test database connection
+  try {
+    await db.$connect();
+    console.log('Database connection successful');
+  } catch (error) {
+    console.error('Database connection failed:', error);
+    throw error;
+  }
+
+  console.log('Integration test setup complete.');
 });
 
 afterAll(async () => {
-  // Cleanup: Drop test database after all tests
-  console.log('Tearing down test database...');
-
-  // Note: In production, you might want to keep the test DB for debugging
-  // Uncomment to drop the test database:
-  // execSync('psql -U dev_user -h localhost -c "DROP DATABASE IF EXISTS fantasy_football_test;"');
+  console.log('Tearing down test database connection...');
+  try {
+    await db.$disconnect();
+    console.log('Database disconnected successfully');
+  } catch (error) {
+    console.error('Error disconnecting database:', error);
+  }
 });
 
 beforeEach(async () => {
   // Clear tables before each test to ensure isolation
   // Delete in order to respect foreign key constraints
-  await db.injuryAlert.deleteMany();
-  await db.waiverRecommendation.deleteMany();
-  await db.tradeRecommendation.deleteMany();
-  await db.opponentProfile.deleteMany();
-  await db.transaction.deleteMany();
-  await db.roster.deleteMany();
-  await db.league.deleteMany();
-  await db.user.deleteMany();
-  await db.playerProjection.deleteMany();
-  await db.player.deleteMany();
+  try {
+    await db.injuryAlert.deleteMany();
+    await db.waiverRecommendation.deleteMany();
+    await db.tradeRecommendation.deleteMany();
+    await db.opponentProfile.deleteMany();
+    await db.transaction.deleteMany();
+    await db.roster.deleteMany();
+    await db.league.deleteMany();
+    await db.user.deleteMany();
+    await db.playerProjection.deleteMany();
+    await db.player.deleteMany();
+  } catch (error) {
+    console.error('Error clearing database tables:', error);
+    throw error;
+  }
 });
 
 afterEach(async () => {
