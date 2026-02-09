@@ -79,7 +79,6 @@ jobs:
           NODE_ENV: test
 
       - name: Run integration tests
-        continue-on-error: true  # Allow CI to continue while we debug integration test issues
         run: |
           echo "=== Database connection test ==="
           PGPASSWORD=test_password psql -h localhost -U test_user -d fantasy_football_test -c "SELECT 1;" || echo "DB connection failed"
