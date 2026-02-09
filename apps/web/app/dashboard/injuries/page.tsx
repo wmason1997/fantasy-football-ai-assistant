@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import InjuryAlertCard from '../../../components/InjuryAlertCard';
 import { apiClient, getErrorMessage } from '../../../lib/api';
@@ -57,14 +57,7 @@ function InjuryAlertsPageContent() {
   const [filterSeason, setFilterSeason] = useState<number | undefined>();
   const [unacknowledgedCount, setUnacknowledgedCount] = useState(0);
 
-  useEffect(() => {
-    if (leagueId) {
-      loadAlerts();
-      loadMonitoringStatus();
-    }
-  }, [leagueId, filterUnacknowledged, filterWeek, filterSeason]);
-
-  const loadAlerts = async () => {
+  const loadAlerts = useCallback(async () => {
     if (!leagueId) return;
 
     setIsLoading(true);
@@ -84,7 +77,14 @@ function InjuryAlertsPageContent() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [leagueId, filterWeek, filterSeason, filterUnacknowledged]);
+
+  useEffect(() => {
+    if (leagueId) {
+      loadAlerts();
+      loadMonitoringStatus();
+    }
+  }, [leagueId, filterUnacknowledged, filterWeek, filterSeason, loadAlerts]);
 
   const loadMonitoringStatus = async () => {
     try {
@@ -175,7 +175,7 @@ function InjuryAlertsPageContent() {
               <p className="font-medium mb-1">How Injury Monitoring Works</p>
               <p>
                 The system monitors your starting players during NFL game windows (Thu 6-11PM, Sun 12PM-11PM, Mon 6-11PM ET).
-                When a player's status changes to "Out" within 2 hours of kickoff, you'll receive an alert with a recommended
+                When a player&apos;s status changes to &quot;Out&quot; within 2 hours of kickoff, you&apos;ll receive an alert with a recommended
                 substitution from your bench.
               </p>
             </div>

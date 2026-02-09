@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/auth';
 import { apiClient, getErrorMessage } from '@/lib/api';
 import TradeRecommendationCard from '@/components/TradeRecommendationCard';
@@ -55,17 +55,7 @@ export default function TradesPage() {
   const [currentWeek, setCurrentWeek] = useState<number>(1);
   const [currentSeason, setCurrentSeason] = useState<number>(new Date().getFullYear());
 
-  useEffect(() => {
-    loadLeagues();
-  }, []);
-
-  useEffect(() => {
-    if (selectedLeague) {
-      loadTradeData();
-    }
-  }, [selectedLeague]);
-
-  const loadLeagues = async () => {
+  const loadLeagues = useCallback(async () => {
     try {
       const response = await apiClient.leagues.getAll();
       setLeagues(response.leagues);
@@ -77,9 +67,11 @@ export default function TradesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadTradeData = async () => {
+  const loadTradeData = useCallback(async () => {
+    if (!selectedLeague) return;
+
     try {
       setLoading(true);
       setError('');
@@ -128,7 +120,17 @@ export default function TradesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedLeague, currentWeek, currentSeason]);
+
+  useEffect(() => {
+    loadLeagues();
+  }, [loadLeagues]);
+
+  useEffect(() => {
+    if (selectedLeague) {
+      loadTradeData();
+    }
+  }, [selectedLeague, loadTradeData]);
 
   const generateRecommendations = async () => {
     try {
@@ -386,7 +388,7 @@ export default function TradesPage() {
               No Trade Recommendations Yet
             </h3>
             <p className="text-gray-600 mb-6">
-              Click "Generate Recommendations" to analyze your roster and find optimal trade opportunities based on player performance data.
+              Click &quot;Generate Recommendations&quot; to analyze your roster and find optimal trade opportunities based on player performance data.
             </p>
           </div>
         </div>

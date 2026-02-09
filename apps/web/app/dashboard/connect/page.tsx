@@ -288,7 +288,7 @@ export default function ConnectLeaguePage() {
 
               <div className="mt-6 p-4 bg-blue-50 rounded-lg">
                 <p className="text-sm text-blue-800">
-                  <strong>What happens next:</strong> We'll sync your roster, league settings, and start generating AI-powered recommendations for trades and waivers.
+                  <strong>What happens next:</strong> We&apos;ll sync your roster, league settings, and start generating AI-powered recommendations for trades and waivers.
                 </p>
               </div>
             </>

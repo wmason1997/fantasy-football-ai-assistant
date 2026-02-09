@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import WaiverRecommendationCard from '@/components/WaiverRecommendationCard';
 import { apiClient, getErrorMessage } from '@/lib/api';
@@ -17,15 +17,7 @@ function WaiversPageContent() {
   const [league, setLeague] = useState<any>(null);
   const [showNeeds, setShowNeeds] = useState(false);
 
-  useEffect(() => {
-    if (leagueId) {
-      fetchLeague();
-      fetchRecommendations();
-      fetchPositionalNeeds();
-    }
-  }, [leagueId]);
-
-  const fetchLeague = async () => {
+  const fetchLeague = useCallback(async () => {
     if (!leagueId) return;
 
     try {
@@ -34,9 +26,9 @@ function WaiversPageContent() {
     } catch (err) {
       console.error('Error fetching league:', err);
     }
-  };
+  }, [leagueId]);
 
-  const fetchRecommendations = async () => {
+  const fetchRecommendations = useCallback(async () => {
     if (!leagueId) return;
 
     try {
@@ -49,9 +41,9 @@ function WaiversPageContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [leagueId]);
 
-  const fetchPositionalNeeds = async () => {
+  const fetchPositionalNeeds = useCallback(async () => {
     if (!leagueId) return;
 
     try {
@@ -60,7 +52,15 @@ function WaiversPageContent() {
     } catch (err) {
       console.error('Error fetching positional needs:', err);
     }
-  };
+  }, [leagueId]);
+
+  useEffect(() => {
+    if (leagueId) {
+      fetchLeague();
+      fetchRecommendations();
+      fetchPositionalNeeds();
+    }
+  }, [leagueId, fetchLeague, fetchRecommendations, fetchPositionalNeeds]);
 
   const handleGenerate = async () => {
     if (!leagueId) return;
