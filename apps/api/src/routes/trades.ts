@@ -230,13 +230,13 @@ export default async function tradeRoutes(server: FastifyInstance) {
       // Calculate player values
       const myPlayers = await Promise.all(
         myPlayerIds.map((id) =>
-          tradeAnalyzerService.calculatePlayerValue(id, season, week)
+          tradeAnalyzerService.calculatePlayerValue(id, leagueId, season, week)
         )
       );
 
       const targetPlayers = await Promise.all(
         targetPlayerIds.map((id) =>
-          tradeAnalyzerService.calculatePlayerValue(id, season, week)
+          tradeAnalyzerService.calculatePlayerValue(id, leagueId, season, week)
         )
       );
 
