@@ -2,6 +2,8 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import jwt from '@fastify/jwt';
+import sensible from '@fastify/sensible';
+import { ZodError } from 'zod';
 import { config } from './config';
 import authPlugin from './plugins/auth';
 import authRoutes from './routes/auth';
@@ -26,7 +28,9 @@ export async function build() {
   // Decorate server with Prisma client
   server.decorate('prisma', db);
 
-  // Register plugins
+  // Register plugins (match production server.ts)
+  await server.register(sensible);
+
   await server.register(cors, {
     origin: config.frontendUrl,
     credentials: true,
@@ -38,11 +42,25 @@ export async function build() {
 
   await server.register(rateLimit, {
     global: true,
-    max: 100,
+    max: 1000, // Higher limit for tests to avoid rate limiting across test runs
     timeWindow: '1 minute',
   });
 
   await server.register(authPlugin);
+
+  // Error handler for Zod validation errors (match production server.ts)
+  server.setErrorHandler((error, request, reply) => {
+    if (error instanceof ZodError) {
+      return reply.status(400).send({
+        error: 'Validation Error',
+        details: error.errors,
+      });
+    }
+
+    return reply.status(error.statusCode || 500).send({
+      error: error.message || 'Internal Server Error',
+    });
+  });
 
   // Health check endpoint
   server.get('/health', async () => {
@@ -59,6 +77,9 @@ export async function build() {
   await server.register(tradeRoutes, { prefix: '/trades' });
   await server.register(waiverRoutes, { prefix: '/waivers' });
   await server.register(injuryRoutes, { prefix: '/injuries' });
+
+  // Ensure all plugins and routes are loaded
+  await server.ready();
 
   return server;
 }

@@ -79,12 +79,7 @@ jobs:
           NODE_ENV: test
 
       - name: Run integration tests
-        continue-on-error: true  # TODO: Fix integration test failures in CI
-        run: |
-          echo "=== Database connection test ==="
-          PGPASSWORD=test_password psql -h localhost -U test_user -d fantasy_football_test -c "SELECT 1;" || echo "DB connection failed"
-          echo "=== Running integration tests ==="
-          pnpm test:integration --reporter=verbose 2>&1
+        run: pnpm test:integration --reporter=verbose
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/fantasy_football_test
           REDIS_URL: redis://localhost:6379
@@ -177,29 +172,18 @@ jobs:
           PORT: 3001
 
       - name: Wait for API to be ready
-        continue-on-error: true  # Allow CI to continue while we debug API startup issues
         id: api_ready
         run: |
-          echo "=== Initial API log content ==="
-          cat /tmp/api.log || echo "No log file yet"
-          echo "=== Waiting for API ==="
           for i in {1..30}; do
             if curl -sf http://localhost:3001/health; then
               echo "API is ready!"
-              cat /tmp/api.log || true
               exit 0
             fi
             echo "Waiting for API... (attempt $i/30)"
-            echo "--- Current log ---"
-            tail -20 /tmp/api.log 2>/dev/null || echo "No log yet"
             sleep 2
           done
-          echo "=== API failed to start. Full logs: ==="
+          echo "API failed to start. Logs:"
           cat /tmp/api.log || echo "No log file"
-          echo "=== Process status ==="
-          ps aux | grep -E "(node|tsx|pnpm)" || true
-          echo "=== Port 3001 status ==="
-          netstat -tlnp 2>/dev/null | grep 3001 || ss -tlnp | grep 3001 || echo "Port check failed"
           exit 1
 
       - name: Start frontend server
