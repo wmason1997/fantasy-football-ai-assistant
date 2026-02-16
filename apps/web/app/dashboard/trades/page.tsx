@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { apiClient, getErrorMessage } from '@/lib/api';
 import TradeRecommendationCard from '@/components/TradeRecommendationCard';
@@ -43,6 +44,8 @@ interface TradeRecommendation {
 
 export default function TradesPage() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const leagueIdParam = searchParams.get('leagueId');
   const [leagues, setLeagues] = useState<any[]>([]);
   const [selectedLeague, setSelectedLeague] = useState<string>('');
   const [recommendations, setRecommendations] = useState<TradeRecommendation[]>([]);
@@ -60,14 +63,16 @@ export default function TradesPage() {
       const response = await apiClient.leagues.getAll();
       setLeagues(response.leagues);
       if (response.leagues.length > 0) {
-        setSelectedLeague(response.leagues[0].id);
+        // Pre-select league from URL param if valid, otherwise first league
+        const match = leagueIdParam && response.leagues.find((l: any) => l.id === leagueIdParam);
+        setSelectedLeague(match ? match.id : response.leagues[0].id);
       }
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [leagueIdParam]);
 
   const loadTradeData = useCallback(async () => {
     if (!selectedLeague) return;

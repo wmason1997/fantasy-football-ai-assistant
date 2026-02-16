@@ -112,7 +112,7 @@ export default async function waiverRoutes(server: FastifyInstance) {
     async (
       request: FastifyRequest<{
         Querystring: {
-          leagueId: string;
+          leagueId?: string;
           week?: string;
           season?: string;
           status?: string;
@@ -120,6 +120,10 @@ export default async function waiverRoutes(server: FastifyInstance) {
       }>
     ) => {
       const leagueId = request.query.leagueId;
+
+      if (!leagueId) {
+        return request.server.httpErrors.badRequest('leagueId query parameter is required');
+      }
 
       // Verify user owns this league
       const league = await server.prisma.league.findFirst({

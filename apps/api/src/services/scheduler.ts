@@ -1,7 +1,9 @@
 import cron, { ScheduledTask } from 'node-cron';
+import { db } from '@fantasy-football/database';
 import { projectionService } from './projections';
 import { playerSyncService } from './playerSync';
 import { playerStatsService } from './playerStats';
+import { opponentLearningService } from './opponentLearning';
 
 /**
  * Get current NFL week and season
@@ -120,8 +122,7 @@ export class SchedulerService {
       '0 8 * * 3', // Every Wednesday at 8:00 AM UTC (3:00 AM ET)
       async () => {
         console.log('Running scheduled transaction sync...');
-        // TODO: Implement transaction sync for all connected leagues
-        // This will be implemented when we build the opponent learning system
+        await this.syncTransactions();
       },
       {
         timezone: 'UTC',
@@ -231,6 +232,47 @@ export class SchedulerService {
       }
     } catch (error) {
       console.error('Error in scheduled weekly stats sync:', error);
+    }
+  }
+
+  /**
+   * Sync transactions for all connected leagues and update opponent profiles
+   */
+  private async syncTransactions() {
+    try {
+      const { week: currentWeek, season } = getCurrentWeekAndSeason();
+
+      if (currentWeek === 0) {
+        console.log('Offseason - skipping transaction sync');
+        return;
+      }
+
+      // Get all active leagues
+      const leagues = await db.league.findMany({
+        where: { isActive: true },
+      });
+
+      console.log(`Syncing transactions for ${leagues.length} active leagues...`);
+
+      for (const league of leagues) {
+        try {
+          await opponentLearningService.syncLeagueTransactions(
+            league.id,
+            season,
+            currentWeek
+          );
+          console.log(`  ✓ Synced transactions for league ${league.leagueName || league.id}`);
+        } catch (error) {
+          console.error(
+            `  ✗ Failed to sync transactions for league ${league.id}:`,
+            error instanceof Error ? error.message : error
+          );
+        }
+      }
+
+      console.log('✓ Scheduled transaction sync completed');
+    } catch (error) {
+      console.error('Error in scheduled transaction sync:', error);
     }
   }
 
