@@ -58,12 +58,16 @@ export const useAuth = create<AuthState>()(
       loadUser: async () => {
         const token = localStorage.getItem('token');
         if (!token) {
+          // Clear cookie too in case it's stale
+          document.cookie = 'token=; path=/; max-age=0';
           set({ user: null, token: null, isAuthenticated: false });
           return;
         }
 
         try {
           const response = await apiClient.auth.me();
+          // Refresh cookie to keep middleware in sync with localStorage
+          document.cookie = `token=${token}; path=/; max-age=${60 * 60 * 24 * 7}`;
           set({
             user: response.user,
             token,
@@ -71,6 +75,7 @@ export const useAuth = create<AuthState>()(
           });
         } catch (error) {
           localStorage.removeItem('token');
+          document.cookie = 'token=; path=/; max-age=0';
           set({ user: null, token: null, isAuthenticated: false });
         }
       },
