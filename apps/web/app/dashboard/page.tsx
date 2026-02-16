@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
 import { apiClient, getErrorMessage } from '@/lib/api';
 import type { League } from '@fantasy-football/shared';
@@ -182,10 +183,25 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                  View Details →
-                </button>
+              <div className="mt-4 pt-4 border-t border-gray-200 flex gap-4">
+                <Link
+                  href={`/dashboard/trades`}
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  Trades
+                </Link>
+                <Link
+                  href={`/dashboard/waivers?leagueId=${league.id}`}
+                  className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
+                >
+                  Waivers
+                </Link>
+                <Link
+                  href={`/dashboard/injuries?leagueId=${league.id}`}
+                  className="text-sm text-amber-600 hover:text-amber-700 font-medium"
+                >
+                  Injuries
+                </Link>
               </div>
             </div>
           ))}

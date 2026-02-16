@@ -175,6 +175,65 @@ export class ProjectionService {
   }
 
   /**
+   * Generate projections using historical stats where available,
+   * falling back to position averages for players without enough data
+   */
+  private async generateHistoricalProjections(
+    week: number,
+    season: number
+  ): Promise<PlayerProjectionData[]> {
+    const players = await db.player.findMany({
+      where: {
+        status: { in: ['Active', 'Questionable'] },
+      },
+    });
+
+    console.log(`Generating projections for ${players.length} active players...`);
+
+    const projections: PlayerProjectionData[] = [];
+    let historicalCount = 0;
+    let fallbackCount = 0;
+
+    // Process in batches of 50 to avoid overwhelming DB
+    for (let i = 0; i < players.length; i += 50) {
+      const batch = players.slice(i, i + 50);
+
+      const batchResults = await Promise.all(
+        batch.map(async (player) => {
+          // Try historical projection first (only for in-season weeks)
+          if (week > 0) {
+            const historical = await this.generateProjectionFromHistory(
+              player.id,
+              season,
+              week
+            );
+            if (historical) {
+              return { projection: historical, isHistorical: true };
+            }
+          }
+          // Fall back to position average
+          return {
+            projection: this.fallbackToPositionAverage(player, week, season),
+            isHistorical: false,
+          };
+        })
+      );
+
+      for (const { projection, isHistorical } of batchResults) {
+        projections.push(projection);
+        if (isHistorical) historicalCount++;
+        else fallbackCount++;
+      }
+    }
+
+    console.log(
+      `Projections generated: ${historicalCount} from history, ${fallbackCount} from position averages`
+    );
+
+    return projections;
+  }
+
+  /**
    * Sync projections for a specific week
    */
   async syncWeekProjections(
@@ -187,8 +246,8 @@ export class ProjectionService {
     let projections: PlayerProjectionData[];
 
     if (useBasicAlgorithm) {
-      // Use basic algorithm as fallback
-      projections = await this.generateBasicProjections(week, season);
+      // Use historical stats where available, position averages as fallback
+      projections = await this.generateHistoricalProjections(week, season);
     } else {
       // Fetch from external API
       projections = await this.fetchProjectionsFromExternalAPI(week, season);
@@ -448,15 +507,53 @@ export class ProjectionService {
     weeks: number[],
     season: number
   ): Promise<number | null> {
-    // TODO: This would need actual game stats from Sleeper API
-    // For now, return null as placeholder
-    //
-    // In production:
-    // 1. Fetch actual points scored from game stats
-    // 2. Fetch projected points for those weeks
-    // 3. Calculate ratio: avgActualPoints / avgProjectedPoints
+    if (weeks.length === 0) return null;
 
-    return null;
+    // Fetch actual stats for the given weeks
+    const actualStats = await db.playerWeekStats.findMany({
+      where: {
+        playerId,
+        season,
+        week: { in: weeks },
+      },
+    });
+
+    if (actualStats.length < 2) return null;
+
+    // Fetch projections for the same weeks
+    const projections = await db.playerProjection.findMany({
+      where: {
+        playerId,
+        season,
+        week: { in: weeks },
+      },
+    });
+
+    // Build a map of week -> projected points
+    const projectionMap = new Map(
+      projections.map((p) => [p.week, p.projectedPoints])
+    );
+
+    // Calculate average actual and projected across weeks where we have both
+    let totalActual = 0;
+    let totalProjected = 0;
+    let matchedWeeks = 0;
+
+    for (const stat of actualStats) {
+      const projected = projectionMap.get(stat.week);
+      if (projected != null && projected > 0) {
+        totalActual += stat.pprPoints ?? 0;
+        totalProjected += projected;
+        matchedWeeks++;
+      }
+    }
+
+    if (matchedWeeks < 2 || totalProjected === 0) return null;
+
+    const avgActual = totalActual / matchedWeeks;
+    const avgProjected = totalProjected / matchedWeeks;
+
+    return avgActual / avgProjected;
   }
 
   /**

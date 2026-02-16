@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '@fantasy-football/database';
 import { sleeperService } from '../services/sleeper';
 import { syncService } from '../services/sync';
+import { getCurrentWeekAndSeason } from '../services/scheduler';
 
 const connectLeagueSchema = z.object({
   platformLeagueId: z.string(),
@@ -276,7 +277,7 @@ export default async function leagueRoutes(fastify: FastifyInstance) {
       }
 
       try {
-        const currentWeek = week || new Date().getWeek(); // You'd need a proper week calculation
+        const currentWeek = week || getCurrentWeekAndSeason().week;
         const transactions = await sleeperService.getTransactions(
           league.platformLeagueId,
           currentWeek
