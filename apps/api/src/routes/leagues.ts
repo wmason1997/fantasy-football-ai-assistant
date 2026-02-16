@@ -141,7 +141,7 @@ export default async function leagueRoutes(fastify: FastifyInstance) {
           return reply.status(400).send({ error: 'League already connected' });
         }
 
-        // Perform initial sync
+        // Perform initial sync (catch unique constraint violation from race condition)
         const league = await syncService.initialLeagueSync(
           body.platformLeagueId,
           userId,
@@ -149,7 +149,11 @@ export default async function leagueRoutes(fastify: FastifyInstance) {
         );
 
         return { league };
-      } catch (error) {
+      } catch (error: any) {
+        // Handle unique constraint violation (race condition between check and create)
+        if (error?.code === 'P2002') {
+          return reply.status(400).send({ error: 'League already connected' });
+        }
         fastify.log.error(error);
         return reply.status(500).send({ error: 'Failed to connect league' });
       }
@@ -261,11 +265,15 @@ export default async function leagueRoutes(fastify: FastifyInstance) {
   });
 
   // Sync transactions for a specific week
+  const syncTransactionsBodySchema = z.object({
+    week: z.number().int().min(1).max(18).optional(),
+  });
+
   fastify.post('/:id/transactions/sync', {
     onRequest: [fastify.authenticate],
     handler: async (request, reply) => {
       const { id } = request.params as { id: string };
-      const { week } = request.body as { week?: number };
+      const body = syncTransactionsBodySchema.parse(request.body);
       const userId = request.user!.userId;
 
       const league = await prisma.league.findFirst({
@@ -277,7 +285,7 @@ export default async function leagueRoutes(fastify: FastifyInstance) {
       }
 
       try {
-        const currentWeek = week || getCurrentWeekAndSeason().week;
+        const currentWeek = body.week || getCurrentWeekAndSeason().week;
         const transactions = await sleeperService.getTransactions(
           league.platformLeagueId,
           currentWeek
@@ -287,41 +295,44 @@ export default async function leagueRoutes(fastify: FastifyInstance) {
           return { success: true, message: 'No transactions found', count: 0 };
         }
 
-        // Store transactions in database
-        let count = 0;
+        // Filter to only new transactions, then batch insert in a single DB transaction
+        const newTransactions = [];
         for (const txn of transactions) {
-          // Check if transaction already exists
           const existing = await prisma.transaction.findFirst({
             where: {
               leagueId: id,
               platformTransactionId: txn.transaction_id,
             },
           });
-
           if (!existing) {
-            await prisma.transaction.create({
-              data: {
-                league: {
-                  connect: { id },
-                },
-                platformTransactionId: txn.transaction_id,
-                transactionType: txn.type,
-                week: currentWeek,
-                season: new Date().getFullYear(),
-                involvedTeams: [],
-                playersMoved: [],
-                status: 'completed',
-                metadata: txn as any,
-              },
-            });
-            count++;
+            newTransactions.push(txn);
           }
+        }
+
+        if (newTransactions.length > 0) {
+          await prisma.$transaction(
+            newTransactions.map((txn) =>
+              prisma.transaction.create({
+                data: {
+                  league: { connect: { id } },
+                  platformTransactionId: txn.transaction_id,
+                  transactionType: txn.type,
+                  week: currentWeek,
+                  season: new Date().getFullYear(),
+                  involvedTeams: [],
+                  playersMoved: [],
+                  status: 'completed',
+                  metadata: txn as any,
+                },
+              })
+            )
+          );
         }
 
         return {
           success: true,
-          message: `Synced ${count} new transactions`,
-          count,
+          message: `Synced ${newTransactions.length} new transactions`,
+          count: newTransactions.length,
         };
       } catch (error) {
         fastify.log.error(error);

@@ -522,7 +522,7 @@ export class InjuryMonitorService {
       playerName: best.player.fullName,
       position: best.player.position,
       projectedPoints: best.projection,
-      gameTime: best.gameTime!,
+      gameTime: best.gameTime || new Date(),
       reason: `Best available ${position} on your bench`,
     };
   }

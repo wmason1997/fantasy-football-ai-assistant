@@ -119,7 +119,7 @@ describe('Route-Level Tests', () => {
     });
 
     // Generate a real JWT token
-    authToken = server.jwt.sign({ userId: TEST_USER.id });
+    authToken = server.jwt.sign({ userId: TEST_USER.id, email: TEST_USER.email });
   });
 
   afterAll(async () => {

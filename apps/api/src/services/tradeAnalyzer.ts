@@ -167,8 +167,8 @@ export class TradeAnalyzerService {
       projectedPoints.reduce((a, b) => a + b, 0) / projectedPoints.length;
 
     // 5. Calculate ratio
-    if (avgProjected === 0) {
-      console.log(`[TradeAnalyzer] Average projected points is 0 for player ${playerId}`);
+    if (avgProjected < 0.5) {
+      console.log(`[TradeAnalyzer] Average projected points too low (${avgProjected.toFixed(2)}) for player ${playerId}`);
       return null;
     }
 

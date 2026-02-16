@@ -116,9 +116,28 @@ export class WaiverOptimizerService {
     const avgProj = avgProjectionByPosition[player.position] || 10.0;
     projectionScore = Math.min(1.0, projection.projectedPoints / (avgProj * 1.5));
 
-    // 2. Recent performance score (mock - would fetch actual stats)
-    // In production, calculate last 3 weeks average
-    performanceScore = 0.5 + Math.random() * 0.3; // Mock: 0.5 to 0.8
+    // 2. Recent performance score from actual stats (last 3 weeks)
+    const recentWeeks = Math.max(1, currentWeek - 3);
+    const recentStats = await db.playerWeekStats.findMany({
+      where: {
+        playerId,
+        season,
+        week: { gte: recentWeeks, lt: currentWeek },
+      },
+      orderBy: { week: 'desc' },
+      take: 3,
+    });
+
+    if (recentStats.length > 0) {
+      const avgRecentPoints = recentStats.reduce(
+        (sum, s) => sum + (s.pprPoints || 0), 0
+      ) / recentStats.length;
+      // Normalize: score of 1.0 if averaging 1.5x position average
+      performanceScore = Math.min(1.0, avgRecentPoints / (avgProj * 1.5));
+    } else {
+      // No recent stats — neutral score
+      performanceScore = 0.4;
+    }
 
     // 3. Opportunity factors
     let factorCount = 0;
@@ -142,12 +161,20 @@ export class WaiverOptimizerService {
       factorCount++;
     }
 
-    // Opportunity from teammate injury (simplified check)
-    // In production, check if team has injured starter at this position
-    const hasInjuryOpportunity = Math.random() > 0.7; // Mock
-    if (hasInjuryOpportunity) {
-      factorSum += 0.8;
-      factorCount++;
+    // Opportunity from teammate injury — check if same-team, same-position players are injured
+    if (player.team) {
+      const injuredTeammates = await db.player.count({
+        where: {
+          team: player.team,
+          position: player.position,
+          id: { not: playerId },
+          injuryDesignation: { in: ['Out', 'Doubtful', 'IR'] },
+        },
+      });
+      if (injuredTeammates > 0) {
+        factorSum += 0.8;
+        factorCount++;
+      }
     }
 
     opportunityFactors = factorCount > 0 ? factorSum / factorCount : 0.5;

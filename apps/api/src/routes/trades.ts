@@ -180,20 +180,15 @@ export default async function tradeRoutes(server: FastifyInstance) {
     ) => {
       const { id } = request.params;
 
-      const recommendation = await server.prisma.tradeRecommendation.findUnique({
-        where: { id },
-        include: {
-          league: true,
+      const recommendation = await server.prisma.tradeRecommendation.findFirst({
+        where: {
+          id,
+          league: { userId: request.user!.userId },
         },
       });
 
       if (!recommendation) {
         return request.server.httpErrors.notFound('Recommendation not found');
-      }
-
-      // Verify user owns this league
-      if (recommendation.league.userId !== request.user!.userId) {
-        return request.server.httpErrors.forbidden('Access denied');
       }
 
       return { recommendation };
