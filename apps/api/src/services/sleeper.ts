@@ -147,6 +147,14 @@ class SleeperService {
   } | null> {
     return this.get('/state/nfl');
   }
+
+  /**
+   * Get weekly projections for all players
+   * Returns object with playerId as key and projected stats as value
+   */
+  async getWeekProjections(season: number, week: number): Promise<Record<string, any> | null> {
+    return this.get<Record<string, any>>(`/projections/nfl/regular/${season}/${week}`);
+  }
 }
 
 export const sleeperService = new SleeperService();

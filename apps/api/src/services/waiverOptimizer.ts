@@ -418,9 +418,11 @@ export class WaiverOptimizerService {
     const rosters = await sleeperService.getRosters(league.platformLeagueId);
     const rosteredPlayerIds = new Set<string>();
 
-    for (const roster of rosters) {
-      for (const playerId of roster.players || []) {
-        rosteredPlayerIds.add(playerId);
+    if (rosters) {
+      for (const roster of rosters) {
+        for (const playerId of roster.players || []) {
+          rosteredPlayerIds.add(playerId);
+        }
       }
     }
 
@@ -435,6 +437,18 @@ export class WaiverOptimizerService {
 
     // Filter to available players only
     const availablePlayers = allPlayers.filter(p => !rosteredPlayerIds.has(p.id));
+
+    // Fetch trending add data from Sleeper (used for addTrendPercentage)
+    const trendMap = new Map<string, number>();
+    try {
+      const trending = await sleeperService.getTrendingPlayers('add', 24, 200);
+      if (trending && trending.length > 0) {
+        const maxCount = trending[0]?.count || 1;
+        for (const t of trending) {
+          trendMap.set(t.player_id, (t.count / maxCount) * 40);
+        }
+      }
+    } catch { /* trending data is non-critical */ }
 
     // Calculate opportunity scores
     const targets: PlayerOpportunity[] = [];
@@ -454,6 +468,30 @@ export class WaiverOptimizerService {
           season
         );
 
+        // Calculate recent performance from stats
+        const recentWeeks = Math.max(1, currentWeek - 3);
+        const recentStats = await db.playerWeekStats.findMany({
+          where: { playerId: player.id, season, week: { gte: recentWeeks, lt: currentWeek } },
+          take: 3,
+        });
+        const recentPerformance = recentStats.length > 0
+          ? recentStats.reduce((sum, s) => sum + (s.pprPoints || 0), 0) / recentStats.length
+          : 0;
+
+        // Check for teammate injury creating opportunity
+        let injuryImpact = false;
+        if (player.team) {
+          const injuredTeammates = await db.player.count({
+            where: {
+              team: player.team,
+              position: player.position,
+              id: { not: player.id },
+              injuryDesignation: { in: ['Out', 'Doubtful', 'IR'] },
+            },
+          });
+          injuryImpact = injuredTeammates > 0;
+        }
+
         targets.push({
           playerId: player.id,
           playerName: player.fullName,
@@ -461,10 +499,10 @@ export class WaiverOptimizerService {
           team: player.team || undefined,
           opportunityScore,
           projectedPoints: projection?.projectedPoints || 0,
-          recentPerformance: 0, // Mock - would calculate from stats
-          injuryImpact: false, // Mock - would check teammate injuries
+          recentPerformance,
+          injuryImpact,
           isAvailable: true,
-          addTrendPercentage: Math.random() * 40, // Mock - would fetch from API
+          addTrendPercentage: trendMap.get(player.id) || 0,
         });
       }
     }

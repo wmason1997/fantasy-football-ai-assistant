@@ -6,16 +6,51 @@ import Link from 'next/link';
 import WaiverRecommendationCard from '@/components/WaiverRecommendationCard';
 import { apiClient, getErrorMessage } from '@/lib/api';
 
+interface WaiverRecommendation {
+  id: string;
+  playerName: string;
+  position: string;
+  team?: string;
+  opportunityScore: number;
+  projectedPoints: number;
+  positionalNeed: number;
+  wouldStartImmediately: boolean;
+  recommendedBid?: number;
+  minBid?: number;
+  maxBid?: number;
+  priorityRank?: number;
+  shouldClaim?: boolean;
+  suggestedDropPlayerName?: string;
+  reasoning: string;
+  confidence: number;
+  urgency: string;
+  status: string;
+}
+
+interface PositionalNeed {
+  position: string;
+  needScore: number;
+  currentStarters: number;
+  requiredStarters: number;
+}
+
+interface LeagueSummary {
+  id: string;
+  leagueName: string;
+  faabBudget?: number;
+  currentFaab?: number;
+}
+
 function WaiversPageContent() {
   const searchParams = useSearchParams();
   const leagueId = searchParams.get('leagueId');
 
-  const [recommendations, setRecommendations] = useState<any[]>([]);
-  const [positionalNeeds, setPositionalNeeds] = useState<any[]>([]);
+  const [recommendations, setRecommendations] = useState<WaiverRecommendation[]>([]);
+  const [positionalNeeds, setPositionalNeeds] = useState<PositionalNeed[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
-  const [league, setLeague] = useState<any>(null);
+  const [league, setLeague] = useState<LeagueSummary | null>(null);
   const [showNeeds, setShowNeeds] = useState(false);
 
   const fetchLeague = useCallback(async () => {

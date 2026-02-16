@@ -1,6 +1,7 @@
 import { db } from '@fantasy-football/database';
 import { cacheService, CACHE_TTL } from './cache';
 import { playerStatsService } from './playerStats';
+import { sleeperService } from './sleeper';
 
 /**
  * Interface for player projection data
@@ -60,30 +61,53 @@ export class ProjectionService {
     week: number,
     season: number
   ): Promise<PlayerProjectionData[]> {
-    // TODO: Replace with actual API integration
-    // Example API call structure:
-    /*
-    const response = await fetch(
-      `https://api.fantasypros.com/v2/projections?week=${week}&season=${season}`,
-      {
-        headers: {
-          'x-api-key': process.env.FANTASYPROS_API_KEY,
+    // Fetch projections from Sleeper API
+    const sleeperProjections = await sleeperService.getWeekProjections(season, week);
+
+    if (!sleeperProjections || Object.keys(sleeperProjections).length === 0) {
+      console.warn(
+        `No Sleeper projections available for week ${week}, season ${season}. Falling back to historical.`
+      );
+      return [];
+    }
+
+    const projections: PlayerProjectionData[] = [];
+
+    for (const [playerId, data] of Object.entries(sleeperProjections)) {
+      if (!data || typeof data !== 'object') continue;
+
+      // Sleeper returns stats like pts_ppr, pts_half_ppr, pts_std
+      const projectedPoints = (data as any).pts_ppr
+        || (data as any).pts_half_ppr
+        || (data as any).pts_std
+        || 0;
+
+      // Skip players with no meaningful projection
+      if (projectedPoints < 0.5) continue;
+
+      projections.push({
+        playerId,
+        week,
+        season,
+        projectedPoints,
+        stats: {
+          passingYards: (data as any).pass_yd,
+          passingTDs: (data as any).pass_td,
+          interceptions: (data as any).pass_int,
+          rushingYards: (data as any).rush_yd,
+          rushingTDs: (data as any).rush_td,
+          receptions: (data as any).rec,
+          receivingYards: (data as any).rec_yd,
+          receivingTDs: (data as any).rec_td,
+          targets: (data as any).rec_tgt,
         },
-      }
-    );
-    const data = await response.json();
-    return this.transformExternalDataToProjections(data);
-    */
+        confidence: 0.7,
+        source: 'sleeper',
+      });
+    }
 
-    console.warn(
-      `⚠️  No external projection API configured. Using placeholder projections for week ${week}, season ${season}`
-    );
-    console.warn(
-      '   To enable real projections, integrate with FantasyPros, ESPN, or Yahoo API'
-    );
-
-    // Return empty array for now - projections need to come from external source
-    return [];
+    console.log(`Fetched ${projections.length} projections from Sleeper API for week ${week}`);
+    return projections;
   }
 
   /**

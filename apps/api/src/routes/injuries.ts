@@ -21,7 +21,7 @@ export default async function injuryRoutes(server: FastifyInstance) {
     async (
       request: FastifyRequest<{
         Querystring: {
-          leagueId: string;
+          leagueId?: string;
           week?: string;
           season?: string;
           unacknowledged?: string;
@@ -29,6 +29,10 @@ export default async function injuryRoutes(server: FastifyInstance) {
       }>
     ) => {
       const leagueId = request.query.leagueId;
+
+      if (!leagueId) {
+        return request.server.httpErrors.badRequest('leagueId query parameter is required');
+      }
 
       // Verify user owns this league
       const league = await server.prisma.league.findFirst({
@@ -82,20 +86,15 @@ export default async function injuryRoutes(server: FastifyInstance) {
     ) => {
       const { id } = request.params;
 
-      const alert = await server.prisma.injuryAlert.findUnique({
-        where: { id },
-        include: {
-          league: true,
+      const alert = await server.prisma.injuryAlert.findFirst({
+        where: {
+          id,
+          league: { userId: request.user!.userId },
         },
       });
 
       if (!alert) {
         return request.server.httpErrors.notFound('Alert not found');
-      }
-
-      // Verify user owns this league
-      if (alert.league.userId !== request.user!.userId) {
-        return request.server.httpErrors.forbidden('Access denied');
       }
 
       return { alert };
@@ -120,20 +119,15 @@ export default async function injuryRoutes(server: FastifyInstance) {
       const { id } = request.params;
       const { substituted } = acknowledgeAlertSchema.parse(request.body);
 
-      const alert = await server.prisma.injuryAlert.findUnique({
-        where: { id },
-        include: {
-          league: true,
+      const alert = await server.prisma.injuryAlert.findFirst({
+        where: {
+          id,
+          league: { userId: request.user!.userId },
         },
       });
 
       if (!alert) {
         return request.server.httpErrors.notFound('Alert not found');
-      }
-
-      // Verify user owns this league
-      if (alert.league.userId !== request.user!.userId) {
-        return request.server.httpErrors.forbidden('Access denied');
       }
 
       // Update alert

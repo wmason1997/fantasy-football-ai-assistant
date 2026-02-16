@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { projectionService } from '../services/projections';
 import { playerSyncService } from '../services/playerSync';
+import { sleeperService } from '../services/sleeper';
 import { db } from '@fantasy-football/database';
 
 // Validation schemas
@@ -327,17 +328,45 @@ export default async function playerRoutes(server: FastifyInstance) {
     {
       preHandler: [server.authenticate],
     },
-    async () => {
-      // TODO: Implement trending logic based on:
-      // - Projection changes week-over-week
-      // - Most added/dropped in leagues
-      // - Injury status changes
-      // - Opportunity score increases
+    async (
+      request: FastifyRequest<{
+        Querystring: {
+          type?: string;
+          hours?: string;
+          limit?: string;
+        };
+      }>
+    ) => {
+      const type = (request.query.type === 'drop' ? 'drop' : 'add') as 'add' | 'drop';
+      const hours = request.query.hours ? parseInt(request.query.hours) : 24;
+      const limit = request.query.limit ? Math.min(parseInt(request.query.limit), 50) : 25;
 
-      return {
-        trending: [],
-        message: 'Trending players feature coming soon',
-      };
+      const trending = await sleeperService.getTrendingPlayers(type, hours, limit);
+
+      if (!trending || trending.length === 0) {
+        return { trending: [], type, count: 0 };
+      }
+
+      // Enrich with player names from DB
+      const playerIds = trending.map((t: any) => t.player_id);
+      const players = await db.player.findMany({
+        where: { id: { in: playerIds } },
+        select: { id: true, fullName: true, position: true, team: true },
+      });
+      const playerMap = new Map(players.map(p => [p.id, p]));
+
+      const enriched = trending.map((t: any) => {
+        const player = playerMap.get(t.player_id);
+        return {
+          playerId: t.player_id,
+          playerName: player?.fullName || 'Unknown',
+          position: player?.position || 'Unknown',
+          team: player?.team || null,
+          count: t.count,
+        };
+      });
+
+      return { trending: enriched, type, count: enriched.length };
     }
   );
 }

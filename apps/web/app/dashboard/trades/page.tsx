@@ -42,11 +42,16 @@ interface TradeRecommendation {
   createdAt?: string;
 }
 
+interface LeagueOption {
+  id: string;
+  leagueName: string;
+}
+
 export default function TradesPage() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
   const leagueIdParam = searchParams.get('leagueId');
-  const [leagues, setLeagues] = useState<any[]>([]);
+  const [leagues, setLeagues] = useState<LeagueOption[]>([]);
   const [selectedLeague, setSelectedLeague] = useState<string>('');
   const [recommendations, setRecommendations] = useState<TradeRecommendation[]>([]);
   const [sellHighPlayers, setSellHighPlayers] = useState<PlayerValue[]>([]);
@@ -64,7 +69,7 @@ export default function TradesPage() {
       setLeagues(response.leagues);
       if (response.leagues.length > 0) {
         // Pre-select league from URL param if valid, otherwise first league
-        const match = leagueIdParam && response.leagues.find((l: any) => l.id === leagueIdParam);
+        const match = leagueIdParam && response.leagues.find((l) => l.id === leagueIdParam);
         setSelectedLeague(match ? match.id : response.leagues[0].id);
       }
     } catch (err) {
