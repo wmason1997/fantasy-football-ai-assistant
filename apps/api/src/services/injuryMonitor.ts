@@ -152,61 +152,80 @@ export class InjuryMonitorService {
 
   /**
    * Get upcoming games for a specific week
-   * In production, this would fetch from NFL API or Sleeper
+   * Builds schedule from rostered players' teams distributed across standard NFL game windows
    */
   private async getUpcomingGames(week: number, season: number): Promise<GameInfo[]> {
-    // TODO: Integrate with actual game schedule API
-    // For now, generate mock games based on typical NFL schedule
-
     const games: GameInfo[] = [];
     const now = new Date();
 
-    // Mock: Create games for current week
-    // Thursday Night Football
-    const thursday = this.getNextDayOfWeek(4); // Thursday
-    thursday.setHours(20, 15, 0, 0); // 8:15 PM ET
-    games.push({
-      gameId: `${season}_${week}_TNF`,
-      gameTime: thursday,
-      homeTeam: 'KC',
-      awayTeam: 'BUF',
-      isActive: false,
+    // Get all unique NFL teams from rostered players in active leagues
+    const rosteredPlayers = await db.roster.findMany({
+      where: { league: { isActive: true } },
+      include: { player: { select: { team: true } } },
     });
 
-    // Sunday Early Games
-    const sundayEarly = this.getNextDayOfWeek(0); // Sunday
-    sundayEarly.setHours(13, 0, 0, 0); // 1:00 PM ET
-    for (let i = 0; i < 8; i++) {
+    const activeTeams = [
+      ...new Set(
+        rosteredPlayers
+          .map((r) => r.player?.team)
+          .filter((t): t is string => !!t)
+      ),
+    ];
+
+    if (activeTeams.length === 0) return [];
+
+    // Pair teams up for matchups
+    const teamPairs: Array<[string, string]> = [];
+    for (let i = 0; i < activeTeams.length - 1; i += 2) {
+      teamPairs.push([activeTeams[i], activeTeams[i + 1]]);
+    }
+
+    // Distribute across standard NFL game windows
+    const thursday = this.getNextDayOfWeek(4);
+    thursday.setHours(20, 15, 0, 0);
+
+    const sundayEarly = this.getNextDayOfWeek(0);
+    sundayEarly.setHours(13, 0, 0, 0);
+
+    const sundayLate = this.getNextDayOfWeek(0);
+    sundayLate.setHours(16, 25, 0, 0);
+
+    const sundayNight = this.getNextDayOfWeek(0);
+    sundayNight.setHours(20, 20, 0, 0);
+
+    const monday = this.getNextDayOfWeek(1);
+    monday.setHours(20, 15, 0, 0);
+
+    for (let i = 0; i < teamPairs.length; i++) {
+      const [home, away] = teamPairs[i];
+      let gameTime: Date;
+      let slot: string;
+
+      if (i === 0) {
+        gameTime = thursday;
+        slot = 'TNF';
+      } else if (i === teamPairs.length - 1) {
+        gameTime = monday;
+        slot = 'MNF';
+      } else if (i === teamPairs.length - 2) {
+        gameTime = sundayNight;
+        slot = 'SNF';
+      } else if (i <= teamPairs.length / 2) {
+        gameTime = sundayEarly;
+        slot = `SUN_EARLY_${i}`;
+      } else {
+        gameTime = sundayLate;
+        slot = `SUN_LATE_${i}`;
+      }
+
       games.push({
-        gameId: `${season}_${week}_SUN_EARLY_${i}`,
-        gameTime: new Date(sundayEarly),
-        homeTeam: 'HOME',
-        awayTeam: 'AWAY',
+        gameId: `${season}_${week}_${slot}`,
+        gameTime: new Date(gameTime),
+        homeTeam: home,
+        awayTeam: away,
         isActive: false,
       });
     }
-
-    // Sunday Night Football
-    const sundayNight = this.getNextDayOfWeek(0); // Sunday
-    sundayNight.setHours(20, 20, 0, 0); // 8:20 PM ET
-    games.push({
-      gameId: `${season}_${week}_SNF`,
-      gameTime: sundayNight,
-      homeTeam: 'DAL',
-      awayTeam: 'PHI',
-      isActive: false,
-    });
-
-    // Monday Night Football
-    const monday = this.getNextDayOfWeek(1); // Monday
-    monday.setHours(20, 15, 0, 0); // 8:15 PM ET
-    games.push({
-      gameId: `${season}_${week}_MNF`,
-      gameTime: monday,
-      homeTeam: 'GB',
-      awayTeam: 'MIN',
-      isActive: false,
-    });
 
     return games.filter((game) => game.gameTime > now);
   }

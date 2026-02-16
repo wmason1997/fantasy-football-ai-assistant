@@ -134,6 +134,18 @@ class SleeperService {
   async getWeekStats(season: number, week: number): Promise<Record<string, any> | null> {
     return this.get<Record<string, any>>(`/stats/nfl/regular/${season}/${week}`);
   }
+
+  /**
+   * Get current NFL state (week, season, season_type)
+   */
+  async getNflState(): Promise<{
+    week: number;
+    season: string;
+    season_type: string;
+    league_season: string;
+  } | null> {
+    return this.get('/state/nfl');
+  }
 }
 
 export const sleeperService = new SleeperService();

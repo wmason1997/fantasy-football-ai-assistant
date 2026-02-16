@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { waiverOptimizerService } from '../services/waiverOptimizer';
+import { sleeperService } from '../services/sleeper';
 import { getCurrentWeekAndSeason } from '../services/scheduler';
 
 // Validation schemas
@@ -261,8 +262,21 @@ export default async function waiverRoutes(server: FastifyInstance) {
 
       const positionalNeed = positionalNeeds.get(player.position)?.needScore || 0.5;
 
-      // Mock add trend (would fetch from API)
-      const addTrendPercentage = Math.random() * 40;
+      // Fetch real add trend from Sleeper trending API
+      let addTrendPercentage = 0;
+      try {
+        const trending = await sleeperService.getTrendingPlayers('add', 24, 200);
+        if (trending) {
+          const playerTrend = trending.find((t: any) => t.player_id === playerId);
+          if (playerTrend) {
+            // Normalize: top trending player's count ≈ 40%, scale others relative
+            const maxCount = trending[0]?.count || 1;
+            addTrendPercentage = (playerTrend.count / maxCount) * 40;
+          }
+        }
+      } catch {
+        // Non-critical: default to 0 if API fails
+      }
 
       // Calculate FAAB bid
       const bidCalc = await waiverOptimizerService.calculateFAABBid(

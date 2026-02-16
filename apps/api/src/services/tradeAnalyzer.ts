@@ -575,6 +575,20 @@ export class TradeAnalyzerService {
 
     const myTeamId = league.platformTeamId;
 
+    // Build owner_id → team name mapping from Sleeper
+    const teamNameMap = new Map<string, string>();
+    try {
+      const users = await sleeperService.getLeagueUsers(league.platformLeagueId);
+      if (users) {
+        for (const user of users) {
+          const name = user.metadata?.team_name || user.display_name;
+          teamNameMap.set(user.user_id, name);
+        }
+      }
+    } catch {
+      // Non-critical: fall back to generic names
+    }
+
     // Identify sell-high candidates from my roster
     const sellHighCandidates = myRoster.filter((p) => p.isSellHigh);
 
@@ -600,7 +614,8 @@ export class TradeAnalyzerService {
           [myPlayer],
           [targetPlayer],
           teamId,
-          '1-for-1'
+          '1-for-1',
+          teamNameMap
         );
 
         if (pkg && pkg.fairnessScore > 0.6 && pkg.acceptanceProbability > 0.25) {
@@ -623,7 +638,8 @@ export class TradeAnalyzerService {
               myPlayers,
               [targetPlayer],
               teamId,
-              '2-for-1'
+              '2-for-1',
+              teamNameMap
             );
 
             if (pkg && pkg.fairnessScore > 0.6 && pkg.acceptanceProbability > 0.25) {
@@ -651,7 +667,8 @@ export class TradeAnalyzerService {
                 myPlayers,
                 targetPlayers,
                 teamId,
-                '2-for-2'
+                '2-for-2',
+                teamNameMap
               );
 
               if (pkg && pkg.fairnessScore > 0.6 && pkg.acceptanceProbability > 0.25) {
@@ -681,7 +698,8 @@ export class TradeAnalyzerService {
     myPlayers: PlayerValue[],
     targetPlayers: PlayerValue[],
     targetTeamId: string,
-    tradeType: '1-for-1' | '2-for-1' | '1-for-2' | '2-for-2'
+    tradeType: '1-for-1' | '2-for-1' | '1-for-2' | '2-for-2',
+    teamNameMap?: Map<string, string>
   ): Promise<TradePackage | null> {
     // Calculate values
     const myTotalValue = myPlayers.reduce((sum, p) => sum + p.projectedValue, 0);
@@ -711,7 +729,7 @@ export class TradeAnalyzerService {
       myPlayers,
       targetPlayers,
       targetTeamId,
-      targetTeamName: 'Opponent', // TODO: Fetch actual team name from Sleeper
+      targetTeamName: teamNameMap?.get(targetTeamId) || 'Opponent',
       fairnessScore,
       acceptanceProbability,
       myValueGain,
