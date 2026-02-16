@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import InjuryAlertCard from '../../../components/InjuryAlertCard';
 import { apiClient, getErrorMessage } from '../../../lib/api';
 
@@ -116,8 +117,15 @@ function InjuryAlertsPageContent() {
   if (!leagueId) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-800">
-          Please select a league from your dashboard to view injury alerts.
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">No League Selected</h1>
+          <p className="text-gray-600 mb-4">Please select a league from your dashboard to view injury alerts.</p>
+          <Link
+            href="/dashboard"
+            className="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
+          >
+            Go to Dashboard
+          </Link>
         </div>
       </div>
     );

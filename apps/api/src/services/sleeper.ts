@@ -6,9 +6,10 @@ interface SleeperLeague {
   name: string;
   season: string;
   sport: string;
-  settings: {
-    waiver_type: number;
-    waiver_budget: number;
+  total_rosters: number;
+  settings?: {
+    waiver_type?: number;
+    waiver_budget?: number;
   };
   scoring_settings: Record<string, number>;
   roster_positions: string[];

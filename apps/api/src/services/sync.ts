@@ -76,6 +76,7 @@ class SyncService {
 
     // Create new roster entries
     const playerIds = userRoster.players || [];
+    let didSyncPlayers = false;
 
     for (const playerId of playerIds) {
       // Ensure player exists in database
@@ -83,9 +84,10 @@ class SyncService {
         where: { id: playerId },
       });
 
-      if (!player) {
-        // If player doesn't exist, sync all players first
+      if (!player && !didSyncPlayers) {
+        // Sync all players once if any are missing
         await this.syncPlayers();
+        didSyncPlayers = true;
         player = await prisma.player.findUnique({
           where: { id: playerId },
         });
@@ -158,11 +160,11 @@ class SyncService {
         rosterSettings: {
           positions: leagueData.roster_positions,
         },
-        faabBudget: leagueData.settings.waiver_budget || null,
-        currentFaab: userRoster
-          ? leagueData.settings.waiver_budget - userRoster.settings.waiver_budget_used
+        faabBudget: leagueData.settings?.waiver_budget ?? null,
+        currentFaab: userRoster && leagueData.settings?.waiver_budget
+          ? leagueData.settings.waiver_budget - (userRoster.settings?.waiver_budget_used ?? 0)
           : null,
-        waiverPriority: userRoster?.settings.waiver_position || null,
+        waiverPriority: userRoster?.settings?.waiver_position ?? null,
         isActive: true,
         lastSynced: new Date(),
       },

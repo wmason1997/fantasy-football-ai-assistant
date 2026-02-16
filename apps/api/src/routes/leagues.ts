@@ -51,7 +51,7 @@ export default async function leagueRoutes(fastify: FastifyInstance) {
           id: league.league_id,
           name: league.name,
           season: league.season,
-          totalRosters: league.roster_positions?.length || 0,
+          totalRosters: league.total_rosters || 0,
         }));
 
         return {
